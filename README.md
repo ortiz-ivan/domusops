@@ -273,20 +273,20 @@ pnpm lint
 
 ## Roadmap
 
-### Alta prioridad
+### Completado
 
-- [ ] Diferenciar gasto comprometido / pagado / proyectado
-- [ ] Ampliar cobertura de tests críticos (backend)
-- [ ] Exportación e importación de datos (CSV/JSON)
+- [x] Proyecciones de gasto mensual
+- [x] Detección de anomalías financieras
+- [x] Diferenciar gasto comprometido / pagado / proyectado
+- [x] Presupuesto por categoría con seguimiento mensual
+- [x] Ampliar cobertura de tests críticos (backend) — 358 tests
+- [x] Exportación e importación de datos (JSON) — `exportar_datos` / `importar_datos`
+- [x] Script de backup PostgreSQL — `backup_db` con rotación automática
+- [x] Seed de datos de ejemplo — `seed_datos` (3 meses cerrados + mes actual, anomalía incluida)
+- [x] Refactor de `ExpensesPanel.jsx`
 
-### Media prioridad
+### Pendiente
 
-- [ ] Script de backup de base de datos
-- [ ] Refactor de `ExpensesPanel.jsx`
-- [ ] Seed de datos de ejemplo para desarrollo
-
-### Baja prioridad
-
+- [ ] Política de retención de datos históricos
 - [ ] Gestión documental del hogar
 - [ ] Planificador de menú semanal integrado con inventario
-- [ ] Política de retención de datos históricos
