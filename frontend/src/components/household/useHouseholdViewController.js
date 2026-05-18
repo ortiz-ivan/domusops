@@ -253,5 +253,6 @@ export function useHouseholdViewController() {
     handleOccurrenceAction,
     openTaskModal,
     closeTaskModal,
+    refreshData: loadData,
   };
 }
