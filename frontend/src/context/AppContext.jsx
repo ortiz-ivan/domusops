@@ -1,189 +1,120 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import {
-  getInventorySettings,
-  getMonthlyFinanceSummary,
-  listFinancialEvents,
-  listFixedExpenses,
-  listIncomes,
-  listMonthlyCloses,
-  listProducts,
-  listTaskOccurrences,
-  listVariableExpenses,
-  updateInventorySettings,
-} from "../api.js";
-import {
-  addDays,
-  formatDateInput,
-} from "../components/household/index.js";
-import {
-  normalizeInventorySettings,
-  setCurrentInventorySettings,
-} from "../constants/inventory.js";
+import { createContext, useCallback, useContext, useState } from "react";
+import { updateInventorySettings } from "../api.js";
+import { normalizeInventorySettings } from "../constants/inventory.js";
+import { FinanceProvider, useFinanceContext } from "./FinanceContext.jsx";
+import { HouseholdProvider, useHouseholdContext } from "./HouseholdContext.jsx";
+import { InventoryProvider, useInventoryContext } from "./InventoryContext.jsx";
 
-const AppContext = createContext(null);
+// ─── Error context ────────────────────────────────────────────────────────────
+// Outermost layer — all domain providers report errors here.
 
-const EMPTY_FINANCE_SUMMARY = {
-  month: new Date().getMonth() + 1,
-  year: new Date().getFullYear(),
-  total_income: 0,
-  home_estimated_expenses: 0,
-  fixed_estimated_expenses: 0,
-  variable_expenses: 0,
-  paid_expenses: 0,
-  committed_expenses: 0,
-  committed_fixed_expenses: 0,
-  paid_variable_expenses: 0,
-  committed_variable_expenses: 0,
-  estimated_expenses: 0,
-  expense_percentage: null,
-  remaining_balance: 0,
-  rule_50_30_20: {
-    targets: { needs: 0, wants: 0, savings: 0 },
-    actuals: { needs: 0, wants: 0, savings: 0 },
-    variance: { needs: 0, wants: 0, savings: 0 },
-  },
-  projection: null,
-};
+const AppErrorContext = createContext(null);
 
-export function AppProvider({ children }) {
-  const [products, setProducts] = useState([]);
-  const [fixedExpenses, setFixedExpenses] = useState([]);
-  const [incomes, setIncomes] = useState([]);
-  const [variableExpenses, setVariableExpenses] = useState([]);
-  const [financialEvents, setFinancialEvents] = useState([]);
-  const [monthlyCloses, setMonthlyCloses] = useState([]);
-  const [householdOccurrences, setHouseholdOccurrences] = useState([]);
-  const [inventorySettings, setInventorySettings] = useState(() => normalizeInventorySettings());
-  const [financeSummary, setFinanceSummary] = useState(EMPTY_FINANCE_SUMMARY);
-  const [loading, setLoading] = useState(true);
-  const [loadingSettings, setLoadingSettings] = useState(true);
-  const [selectedFinancePeriod, setSelectedFinancePeriod] = useState(null);
-  const [appError, setAppError] = useState(null);
+// ─── Orchestrator context ─────────────────────────────────────────────────────
+// Lives inside all domain providers so it can call their refresh functions.
 
-  const loadProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await listProducts();
-      setProducts(data || []);
-    } catch (err) {
-      setProducts([]);
-      setAppError(err.message || "Error al cargar productos.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+const AppOrchestratorContext = createContext(null);
 
-  const loadFinanceData = useCallback(async () => {
-    const selectedMonth = selectedFinancePeriod?.month;
-    const selectedYear = selectedFinancePeriod?.year;
-    try {
-      const [fixed, income, variable, summary, events, closes] = await Promise.all([
-        listFixedExpenses(selectedMonth, selectedYear),
-        listIncomes(selectedMonth, selectedYear),
-        listVariableExpenses(selectedMonth, selectedYear),
-        getMonthlyFinanceSummary(selectedMonth, selectedYear),
-        listFinancialEvents(selectedMonth, selectedYear),
-        listMonthlyCloses(),
-      ]);
-      setFixedExpenses(fixed || []);
-      setIncomes(income || []);
-      setVariableExpenses(variable || []);
-      setFinancialEvents(events || []);
-      setMonthlyCloses(closes || []);
-      if (summary) setFinanceSummary(summary);
-    } catch (err) {
-      setFixedExpenses([]);
-      setIncomes([]);
-      setVariableExpenses([]);
-      setFinancialEvents([]);
-      setMonthlyCloses([]);
-      setAppError(err.message || "Error al cargar datos financieros.");
-    }
-  }, [selectedFinancePeriod]);
-
-  const loadInventoryConfig = useCallback(async () => {
-    setLoadingSettings(true);
-    try {
-      const data = await getInventorySettings();
-      const next = normalizeInventorySettings(data);
-      setInventorySettings(next);
-      setCurrentInventorySettings(next);
-    } catch (err) {
-      const fallback = normalizeInventorySettings();
-      setInventorySettings(fallback);
-      setCurrentInventorySettings(fallback);
-      setAppError(err.message || "Error al cargar configuracion. Usando valores por defecto.");
-    } finally {
-      setLoadingSettings(false);
-    }
-  }, []);
-
-  const loadHouseholdAgenda = useCallback(async () => {
-    const dateFrom = formatDateInput(addDays(new Date(), -30));
-    const dateTo = formatDateInput(addDays(new Date(), 7));
-    try {
-      const data = await listTaskOccurrences(dateFrom, dateTo);
-      setHouseholdOccurrences(data || []);
-    } catch (err) {
-      setHouseholdOccurrences([]);
-      setAppError(err.message || "Error al cargar agenda del hogar.");
-    }
-  }, []);
+function AppOrchestrator({ children }) {
+  const { refreshProducts, updateSettings } = useInventoryContext();
+  const { refreshFinance } = useFinanceContext();
+  const { refreshHousehold } = useHouseholdContext();
+  const { setAppError } = useContext(AppErrorContext);
 
   const refreshAllData = useCallback(async () => {
-    await Promise.all([loadProducts(), loadFinanceData(), loadHouseholdAgenda()]);
-  }, [loadProducts, loadFinanceData, loadHouseholdAgenda]);
+    await Promise.all([refreshProducts(), refreshFinance(), refreshHousehold()]);
+  }, [refreshProducts, refreshFinance, refreshHousehold]);
 
   const saveSettings = useCallback(async (nextSettings) => {
     try {
       const response = await updateInventorySettings(nextSettings);
       const updated = normalizeInventorySettings(response);
-      setInventorySettings(updated);
-      setCurrentInventorySettings(updated);
+      updateSettings(updated);
       await refreshAllData();
     } catch (err) {
       setAppError(err.message || "Error al guardar configuracion.");
       throw err;
     }
-  }, [refreshAllData]);
+  }, [updateSettings, refreshAllData, setAppError]);
 
-  useEffect(() => {
-    loadInventoryConfig();
-  }, [loadInventoryConfig]);
-
-  useEffect(() => {
-    if (!loadingSettings) refreshAllData();
-  }, [loadingSettings, refreshAllData]);
-
-  const value = {
-    products,
-    fixedExpenses,
-    incomes,
-    variableExpenses,
-    financialEvents,
-    monthlyCloses,
-    householdOccurrences,
-    inventorySettings,
-    financeSummary,
-    loading,
-    loadingSettings,
-    selectedFinancePeriod,
-    setSelectedFinancePeriod,
-    refreshAllData,
-    saveSettings,
-    appError,
-    clearAppError: () => setAppError(null),
-  };
-
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppOrchestratorContext.Provider value={{ refreshAllData, saveSettings }}>
+      {children}
+    </AppOrchestratorContext.Provider>
+  );
 }
+
+// ─── Public provider ──────────────────────────────────────────────────────────
+
+export function AppProvider({ children }) {
+  const [appError, setAppError] = useState(null);
+  const clearAppError = useCallback(() => setAppError(null), []);
+
+  return (
+    <AppErrorContext.Provider value={{ appError, setAppError, clearAppError }}>
+      <InventoryProvider onError={setAppError}>
+        <FinanceProvider onError={setAppError}>
+          <HouseholdProvider onError={setAppError}>
+            <AppOrchestrator>
+              {children}
+            </AppOrchestrator>
+          </HouseholdProvider>
+        </FinanceProvider>
+      </InventoryProvider>
+    </AppErrorContext.Provider>
+  );
+}
+
+// ─── Backward-compat hook ─────────────────────────────────────────────────────
+// Merges all domain contexts into the original flat shape so existing consumers
+// (App.jsx, CategoryBudgetPanel.jsx) continue to work without changes.
 
 export function useAppContext() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useAppContext must be used inside AppProvider");
-  return ctx;
+  const errorCtx = useContext(AppErrorContext);
+  const orchCtx = useContext(AppOrchestratorContext);
+  const inventory = useInventoryContext();
+  const finance = useFinanceContext();
+  const household = useHouseholdContext();
+
+  if (!errorCtx || !orchCtx) {
+    throw new Error("useAppContext must be used inside AppProvider");
+  }
+
+  return {
+    // ── Inventory ──
+    products: inventory.products,
+    inventorySettings: inventory.inventorySettings,
+    loadingSettings: inventory.loadingSettings,
+    loading: inventory.loadingProducts,
+
+    // ── Finance ──
+    fixedExpenses: finance.fixedExpenses,
+    incomes: finance.incomes,
+    variableExpenses: finance.variableExpenses,
+    financeSummary: finance.financeSummary,
+    financialEvents: finance.financialEvents,
+    monthlyCloses: finance.monthlyCloses,
+    selectedFinancePeriod: finance.selectedFinancePeriod,
+    setSelectedFinancePeriod: finance.setSelectedFinancePeriod,
+
+    // ── Household ──
+    householdOccurrences: household.householdOccurrences,
+
+    // ── App-level ──
+    appError: errorCtx.appError,
+    clearAppError: errorCtx.clearAppError,
+    refreshAllData: orchCtx.refreshAllData,
+    saveSettings: orchCtx.saveSettings,
+  };
 }
 
+// ─── Domain-specific hooks (for new code) ─────────────────────────────────────
+
+export { useInventoryContext } from "./InventoryContext.jsx";
+export { useFinanceContext } from "./FinanceContext.jsx";
+export { useHouseholdContext } from "./HouseholdContext.jsx";
+
+// Kept for backward compat (referenced in constants/inventory.js comment)
 export function useInventorySettings() {
-  return useAppContext().inventorySettings;
+  return useInventoryContext().inventorySettings;
 }
