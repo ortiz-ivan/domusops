@@ -7,8 +7,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .filters import RecurringTaskFilter, TaskOccurrenceFilter
-from .models import RecurringTask, TaskOccurrence
-from .serializers import HouseholdInsightsSerializer, RecurringTaskSerializer, TaskOccurrenceSerializer
+from .models import Document, MealPlan, RecurringTask, TaskOccurrence
+from .serializers import (
+    DocumentSerializer,
+    HouseholdInsightsSerializer,
+    MealPlanSerializer,
+    RecurringTaskSerializer,
+    TaskOccurrenceSerializer,
+)
 from .services import (
     build_household_insights,
     complete_task_occurrence,
@@ -153,3 +159,25 @@ class TaskOccurrenceViewSet(viewsets.GenericViewSet):
             raise ValidationError({"detail": str(exc)}) from exc
 
         return Response(self.get_serializer(occurrence).data, status=status.HTTP_200_OK)
+
+
+class DocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = DocumentSerializer
+    filterset_fields = ["doc_type", "entity_type"]
+
+    def get_queryset(self):
+        return Document.objects.all()
+
+
+class MealPlanViewSet(viewsets.ModelViewSet):
+    serializer_class = MealPlanSerializer
+
+    def get_queryset(self):
+        qs = MealPlan.objects.all()
+        from_date = self.request.query_params.get("from")
+        to_date = self.request.query_params.get("to")
+        if from_date:
+            qs = qs.filter(date__gte=from_date)
+        if to_date:
+            qs = qs.filter(date__lte=to_date)
+        return qs

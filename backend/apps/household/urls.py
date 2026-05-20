@@ -1,11 +1,20 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import HouseholdInsightsView, RecurringTaskViewSet, TaskOccurrenceListView, TaskOccurrenceViewSet
+from .views import (
+    DocumentViewSet,
+    HouseholdInsightsView,
+    MealPlanViewSet,
+    RecurringTaskViewSet,
+    TaskOccurrenceListView,
+    TaskOccurrenceViewSet,
+)
 
 
 router = DefaultRouter()
 router.register(r"recurring-tasks", RecurringTaskViewSet, basename="recurring-task")
+router.register(r"documents", DocumentViewSet, basename="document")
+router.register(r"meal-plans", MealPlanViewSet, basename="meal-plan")
 
 urlpatterns = [
     path("task-occurrences/", TaskOccurrenceListView.as_view(), name="task-occurrence-list"),

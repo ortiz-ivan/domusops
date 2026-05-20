@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.configuration.models import InventorySettings
 from apps.configuration.serializers import validate_household_option
 
-from .models import RecurringTask, TaskOccurrence
+from .models import Document, MealPlan, RecurringTask, TaskOccurrence
 from .services import build_task_linked_context
 
 
@@ -197,3 +197,28 @@ class HouseholdInsightsSerializer(serializers.Serializer):
     recurring_overdue_tasks = TaskComplianceItemSerializer(many=True)
     weekly_estimated_minutes = serializers.IntegerField()
     overdue_tasks_count = serializers.IntegerField()
+
+
+class DocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Document
+        fields = [
+            "id",
+            "title",
+            "doc_type",
+            "content",
+            "url",
+            "entity_type",
+            "entity_id",
+            "expires_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class MealPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealPlan
+        fields = ["id", "date", "meal_time", "name", "notes", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]

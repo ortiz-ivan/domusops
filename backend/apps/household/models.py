@@ -85,3 +85,60 @@ class TaskOccurrence(models.Model):
 
     def __str__(self):
         return f"{self.recurring_task.title} - {self.due_date}"
+
+
+class Document(models.Model):
+    DOC_TYPE_CHOICES = [
+        ("note", "Nota"),
+        ("receipt", "Comprobante"),
+        ("warranty", "Garantia"),
+        ("manual", "Manual"),
+        ("other", "Otro"),
+    ]
+    ENTITY_TYPE_CHOICES = [
+        ("product", "Producto"),
+        ("fixed_expense", "Gasto fijo"),
+        ("recurring_task", "Tarea recurrente"),
+        ("general", "General"),
+    ]
+
+    title = models.CharField(max_length=200)
+    doc_type = models.CharField(max_length=20, choices=DOC_TYPE_CHOICES, default="note")
+    content = models.TextField(blank=True)
+    url = models.URLField(max_length=500, blank=True)
+    entity_type = models.CharField(max_length=30, choices=ENTITY_TYPE_CHOICES, default="general")
+    entity_id = models.PositiveIntegerField(null=True, blank=True)
+    expires_at = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "inventory_document"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class MealPlan(models.Model):
+    MEAL_TIME_CHOICES = [
+        ("breakfast", "Desayuno"),
+        ("lunch", "Almuerzo"),
+        ("dinner", "Cena"),
+        ("snack", "Merienda"),
+    ]
+
+    date = models.DateField()
+    meal_time = models.CharField(max_length=20, choices=MEAL_TIME_CHOICES)
+    name = models.CharField(max_length=200)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "inventory_mealplan"
+        unique_together = ("date", "meal_time")
+        ordering = ["date", "meal_time"]
+
+    def __str__(self):
+        return f"{self.get_meal_time_display()} {self.date}: {self.name}"

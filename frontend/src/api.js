@@ -34,6 +34,8 @@ const PATHS = {
   financialAnomalies: "financial-anomalies/",
   dashboardSummary: "dashboard-summary/",
   settings: "settings/",
+  documents: "documents/",
+  mealPlans: "meal-plans/",
 };
 
 function buildUrl(base, params = {}) {
@@ -258,4 +260,36 @@ export function getFinancialAnomalies(month, year) {
 
 export function getDashboardSummary() {
   return request(PATHS.dashboardSummary);
+}
+
+export function listDocuments(params = {}) {
+  return request(buildUrl(PATHS.documents, params));
+}
+
+export function createDocument(payload) {
+  return request(PATHS.documents, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function updateDocument(id, payload) {
+  return request(`${PATHS.documents}${id}/`, { method: "PATCH", body: JSON.stringify(payload) });
+}
+
+export function deleteDocument(id) {
+  return request(`${PATHS.documents}${id}/`, { method: "DELETE" });
+}
+
+export function listMealPlans(params = {}) {
+  return request(buildUrl(PATHS.mealPlans, params));
+}
+
+export function createMealPlan(payload) {
+  return request(PATHS.mealPlans, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function updateMealPlan(id, payload) {
+  return request(`${PATHS.mealPlans}${id}/`, { method: "PATCH", body: JSON.stringify(payload) });
+}
+
+export function deleteMealPlan(id) {
+  return request(`${PATHS.mealPlans}${id}/`, { method: "DELETE" });
 }

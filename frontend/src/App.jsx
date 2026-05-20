@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronsLeft,
   ChevronsRight,
+  FileText,
   Home,
   LayoutDashboard,
   Package,
@@ -14,6 +15,7 @@ import {
   Plus,
   Settings,
   ShoppingCart,
+  UtensilsCrossed,
   Wallet,
   Zap,
 } from "lucide-react";
@@ -38,6 +40,8 @@ import {
   HouseholdView,
 } from "./components/household/index.js";
 import { GoalsView } from "./components/goals/index.js";
+import { DocumentsView } from "./components/documents/index.js";
+import { MealPlanView } from "./components/menu/index.js";
 import { ProductForm, ProductList } from "./components/inventory/index.js";
 import { SettingsView } from "./components/settings/index.js";
 import {
@@ -56,6 +60,8 @@ const MODULES = [
   { key: "inventory", label: "Inventario", icon: <Package size={15} /> },
   { key: "purchases", label: "Compras", icon: <ShoppingCart size={15} /> },
   { key: "expenses", label: "Gastos", icon: <Wallet size={15} /> },
+  { key: "documents", label: "Documentos", icon: <FileText size={15} /> },
+  { key: "menu", label: "Menu semanal", icon: <UtensilsCrossed size={15} /> },
   { key: "settings", label: "Categorias y Configuracion", icon: <Settings size={15} /> },
 ];
 
@@ -494,6 +500,10 @@ function AppShell() {
             onDataChanged={refreshAllData}
           />
         )}
+
+        {route === "documents" && <DocumentsView />}
+
+        {route === "menu" && <MealPlanView />}
 
         {route === "settings" && (
           <SettingsView
