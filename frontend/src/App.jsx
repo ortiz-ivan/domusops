@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  AlertCircle,
-  AlertTriangle,
   BarChart2,
-  CalendarClock,
-  CalendarDays,
   ChevronsLeft,
   ChevronsRight,
   FileText,
@@ -17,7 +13,6 @@ import {
   ShoppingCart,
   UtensilsCrossed,
   Wallet,
-  Zap,
 } from "lucide-react";
 import "./App.css";
 import {
@@ -30,13 +25,13 @@ import {
   useReportsContext,
 } from "./context/AppContext.jsx";
 import { buildNotificationGroups, NotificationPanel } from "./components/NotificationPanel.jsx";
+import { DashboardView } from "./components/dashboard/index.js";
 import { PurchasesView } from "./components/PurchasesView.jsx";
 import { ExpensesPanel } from "./components/ExpensesPanel.jsx";
 import { ReportsView } from "./components/ReportsView.jsx";
 import {
   getHouseholdAgendaBuckets,
   getHouseholdReminderSummary,
-  HouseholdDashboardSection,
   HouseholdView,
 } from "./components/household/index.js";
 import { GoalsView } from "./components/goals/index.js";
@@ -45,7 +40,6 @@ import { MealPlanView } from "./components/menu/index.js";
 import { ProductForm, ProductList } from "./components/inventory/index.js";
 import { SettingsView } from "./components/settings/index.js";
 import {
-  formatCurrency,
   getCategoryFallbackUnitCost,
   getCategoryLabel,
   getUsageFrequencyWeight,
@@ -64,6 +58,10 @@ const MODULES = [
   { key: "menu", label: "Menu semanal", icon: <UtensilsCrossed size={15} /> },
   { key: "settings", label: "Categorias y Configuracion", icon: <Settings size={15} /> },
 ];
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 
 function daysBetween(dateString) {
   if (!dateString) return null;
@@ -92,194 +90,63 @@ function parsePeriodInputValue(value) {
   return { month: Number(month), year: Number(year) };
 }
 
-function DashboardView({
-  products,
-  filteredProducts,
-  householdAgendaSummary,
-  householdReminderSummary,
-  lowStockProducts,
-  criticalItems,
-  expiringSoon,
-  monthlySpendEstimate,
-  financeSummary,
-  totalStockUnits,
-  inventorySettings,
-}) {
-  return (
-    <section className="module-content fade-in">
-      <div className="section-header">
-        <h2>Control operativo del hogar</h2>
-        <p>Monitorea riesgos, consumo y gasto estimado desde una sola vista.</p>
-      </div>
+// ---------------------------------------------------------------------------
+// Hook: derived state for the shell
+// ---------------------------------------------------------------------------
 
-      <div className="alerts-grid">
-        <article className="alert-card alert-danger">
-          <header>
-            <span className="alert-icon"><AlertTriangle size={14} /></span>
-            <h3>Stock bajo</h3>
-          </header>
-          <strong>{lowStockProducts.length} productos</strong>
-          <p>Prioriza reposicion de productos criticos para evitar faltantes.</p>
-        </article>
-
-        <article className="alert-card alert-warning">
-          <header>
-            <span className="alert-icon"><CalendarClock size={14} /></span>
-            <h3>Proximos a vencer</h3>
-          </header>
-          <strong>{expiringSoon.length} productos</strong>
-          <p>
-            Detectados con fecha de vencimiento dentro de {inventorySettings.alerts.expiring_soon_days} dias.
-          </p>
-        </article>
-
-        <article className="alert-card alert-critical">
-          <header>
-            <span className="alert-icon"><Zap size={14} /></span>
-            <h3>Items criticos</h3>
-          </header>
-          <strong>{criticalItems.length} items</strong>
-          <p>Stock critico en productos con frecuencia marcada como sensible.</p>
-        </article>
-
-        <article className="alert-card alert-danger">
-          <header>
-            <span className="alert-icon"><AlertCircle size={14} /></span>
-            <h3>Tareas atrasadas</h3>
-          </header>
-          <strong>{householdReminderSummary.overdue.length} rutinas</strong>
-          <p>Lo vencido debe resolverse primero para que no se acumule friccion operativa.</p>
-        </article>
-
-        <article className="alert-card alert-warning">
-          <header>
-            <span className="alert-icon"><CalendarDays size={14} /></span>
-            <h3>Vence mañana</h3>
-          </header>
-          <strong>{householdReminderSummary.tomorrow.length} tareas</strong>
-          <p>Te ayuda a preparar compras, limpieza o pagos antes del siguiente dia.</p>
-        </article>
-
-        <article className="alert-card alert-critical">
-          <header>
-            <span className="alert-icon"><CalendarDays size={14} /></span>
-            <h3>Esta semana</h3>
-          </header>
-          <strong>{householdReminderSummary.weekUpcoming.length} pendientes</strong>
-          <p>Visibilidad rapida de lo que aun no vence hoy pero ya conviene anticipar.</p>
-        </article>
-      </div>
-
-      <div className="kpi-grid">
-        <article className="kpi-card">
-          <p>Gasto mensual estimado</p>
-          <h3>{formatCurrency(monthlySpendEstimate)}</h3>
-          <small>Estimacion basada en categoria y frecuencia de uso.</small>
-        </article>
-
-        <article className="kpi-card">
-          <p>Total de productos en stock</p>
-          <h3>{totalStockUnits}</h3>
-          <small>Unidades totales disponibles en inventario.</small>
-        </article>
-
-        <article className="kpi-card">
-          <p>Productos gestionados</p>
-          <h3>{products.length}</h3>
-          <small>{filteredProducts.length} visibles con filtros activos.</small>
-        </article>
-
-        <article className="kpi-card">
-          <p>Gasto sobre ingreso mensual</p>
-          <h3>
-            {financeSummary.expense_percentage === null
-              ? "Sin ingresos"
-              : `${financeSummary.expense_percentage}%`}
-          </h3>
-          <small>Saldo: {formatCurrency(financeSummary.remaining_balance)}</small>
-        </article>
-      </div>
-
-      <article className="panel recent-panel">
-        <div className="panel-title">
-          <h3>Resumen de inventario</h3>
-        </div>
-        <div className="summary-list">
-          {filteredProducts.slice(0, 6).map((product) => {
-            const isLow = product.stock <= product.stock_min;
-            const status = isLow ? "Bajo" : product.stock <= product.stock_min * 2 ? "Medio" : "Alto";
-            return (
-              <div className="summary-row" key={product.id}>
-                <div>
-                  <strong>{product.name}</strong>
-                  <p>{getCategoryLabel(product.category)}</p>
-                </div>
-                <div className={`stock-chip ${status.toLowerCase()}`}>{status}</div>
-              </div>
-            );
-          })}
-          {filteredProducts.length === 0 && <p>No hay productos para mostrar.</p>}
-        </div>
-      </article>
-
-      <HouseholdDashboardSection summary={householdAgendaSummary} />
-    </section>
-  );
-}
-
-function AppShell() {
-  const { products, inventorySettings, loadingSettings, loadingProducts: loading } = useInventoryContext();
-  const { fixedExpenses, incomes, variableExpenses, financeSummary, selectedFinancePeriod, setSelectedFinancePeriod } = useFinanceContext();
-  const { financialEvents, monthlyCloses } = useReportsContext();
+function useAppShellState(searchQuery) {
+  const { products, inventorySettings } = useInventoryContext();
+  const { fixedExpenses } = useFinanceContext();
   const { householdOccurrences } = useHouseholdContext();
-  const { refreshAllData, saveSettings } = useOrchestratorContext();
-  const { appError, clearAppError } = useAppErrorContext();
 
-  const [route, setRoute] = useState("dashboard");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const navigateTo = (moduleKey) => {
-    setRoute(moduleKey);
-    setIsModalOpen(false);
-  };
-
-  useEffect(() => {
-    if (!isModalOpen) return;
-    const handleEsc = (event) => { if (event.key === "Escape") setIsModalOpen(false); };
-    document.addEventListener("keydown", handleEsc);
-    return () => document.removeEventListener("keydown", handleEsc);
-  }, [isModalOpen]);
-
-  const homeProducts = products.filter((p) => isHomeInventoryCategory(p.category, inventorySettings));
+  const homeProducts = products.filter((p) =>
+    isHomeInventoryCategory(p.category, inventorySettings),
+  );
 
   const filteredHomeProducts = homeProducts.filter((product) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
     const category = getCategoryLabel(product.category, inventorySettings);
-    return product.name.toLowerCase().includes(query) || String(category).toLowerCase().includes(query);
+    return (
+      product.name.toLowerCase().includes(query) ||
+      String(category).toLowerCase().includes(query)
+    );
   });
 
   const lowStockProducts = homeProducts.filter(
-    (p) => p.stock <= Number(p.stock_min || 0) * Number(inventorySettings.thresholds.low_stock_ratio || 1)
+    (p) =>
+      p.stock <=
+      Number(p.stock_min || 0) *
+        Number(inventorySettings.thresholds.low_stock_ratio || 1),
   );
+
   const criticalItems = homeProducts.filter(
-    (p) => (
-      p.stock <= Number(p.stock_min || 0) * Number(inventorySettings.thresholds.critical_stock_ratio || 1) &&
-      inventorySettings.alerts.critical_frequencies.includes(p.usage_frequency)
-    )
+    (p) =>
+      p.stock <=
+        Number(p.stock_min || 0) *
+          Number(inventorySettings.thresholds.critical_stock_ratio || 1) &&
+      inventorySettings.alerts.critical_frequencies.includes(p.usage_frequency),
   );
+
   const expiringSoon = homeProducts.filter((p) => {
     const remaining = daysBetween(p.next_due_date);
-    return remaining !== null && remaining >= 0 && remaining <= Number(inventorySettings.alerts.expiring_soon_days || 14);
+    return (
+      remaining !== null &&
+      remaining >= 0 &&
+      remaining <= Number(inventorySettings.alerts.expiring_soon_days || 14)
+    );
   });
 
-  const totalStockUnits = homeProducts.reduce((acc, p) => acc + Number(p.stock || 0), 0);
+  const totalStockUnits = homeProducts.reduce(
+    (acc, p) => acc + Number(p.stock || 0),
+    0,
+  );
+
   const monthlySpendEstimate = homeProducts.reduce((acc, p) => {
     const fallbackCost = getCategoryFallbackUnitCost(p.category, inventorySettings);
     const explicitPrice = Number(p.price);
-    const baseCost = Number.isNaN(explicitPrice) || explicitPrice <= 0 ? fallbackCost : explicitPrice;
+    const baseCost =
+      Number.isNaN(explicitPrice) || explicitPrice <= 0 ? fallbackCost : explicitPrice;
     const frequency = getUsageFrequencyWeight(p.usage_frequency, inventorySettings);
     const projectedUnits = p.type === "consumable" ? Number(p.stock_min || 1) : 1;
     return acc + projectedUnits * baseCost * frequency;
@@ -300,15 +167,73 @@ function AppShell() {
     dueSoonFixedExpenses,
   });
 
-  const reminderHeadline = householdReminderSummary.overdue.length > 0
-    ? `${householdReminderSummary.overdue.length} tarea(s) atrasadas requieren atencion inmediata.`
-    : householdReminderSummary.today.length > 0
-      ? `${householdReminderSummary.today.length} tarea(s) vencen hoy.`
-      : householdReminderSummary.tomorrow.length > 0
-        ? `${householdReminderSummary.tomorrow.length} tarea(s) vencen mañana.`
-        : householdReminderSummary.weekUpcoming.length > 0
-          ? `${householdReminderSummary.weekUpcoming.length} tarea(s) quedan pendientes esta semana.`
-          : "No hay recordatorios urgentes del hogar ahora mismo.";
+  const reminderHeadline =
+    householdReminderSummary.overdue.length > 0
+      ? `${householdReminderSummary.overdue.length} tarea(s) atrasadas requieren atencion inmediata.`
+      : householdReminderSummary.today.length > 0
+        ? `${householdReminderSummary.today.length} tarea(s) vencen hoy.`
+        : householdReminderSummary.tomorrow.length > 0
+          ? `${householdReminderSummary.tomorrow.length} tarea(s) vencen mañana.`
+          : householdReminderSummary.weekUpcoming.length > 0
+            ? `${householdReminderSummary.weekUpcoming.length} tarea(s) quedan pendientes esta semana.`
+            : "No hay recordatorios urgentes del hogar ahora mismo.";
+
+  return {
+    homeProducts,
+    filteredHomeProducts,
+    lowStockProducts,
+    criticalItems,
+    expiringSoon,
+    totalStockUnits,
+    monthlySpendEstimate,
+    householdAgendaSummary,
+    householdReminderSummary,
+    notificationGroups,
+    reminderHeadline,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Shell
+// ---------------------------------------------------------------------------
+
+function AppShell() {
+  const { inventorySettings, loadingSettings, loadingProducts: loading } = useInventoryContext();
+  const { fixedExpenses, incomes, variableExpenses, financeSummary, selectedFinancePeriod, setSelectedFinancePeriod } = useFinanceContext();
+  const { financialEvents, monthlyCloses } = useReportsContext();
+  const { refreshAllData, saveSettings } = useOrchestratorContext();
+  const { appError, clearAppError } = useAppErrorContext();
+
+  const [route, setRoute] = useState("dashboard");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const {
+    homeProducts,
+    filteredHomeProducts,
+    lowStockProducts,
+    criticalItems,
+    expiringSoon,
+    totalStockUnits,
+    monthlySpendEstimate,
+    householdAgendaSummary,
+    householdReminderSummary,
+    notificationGroups,
+    reminderHeadline,
+  } = useAppShellState(searchQuery);
+
+  const navigateTo = (moduleKey) => {
+    setRoute(moduleKey);
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleEsc = (event) => { if (event.key === "Escape") setIsModalOpen(false); };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [isModalOpen]);
 
   const currentModuleLabel = MODULES.find((m) => m.key === route)?.label || "Dashboard";
   const showSearch = route === "dashboard" || route === "inventory";
