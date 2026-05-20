@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAppContext } from "../../context/AppContext.jsx";
+import { useInventoryContext, useOrchestratorContext } from "../../context/AppContext.jsx";
 import { formatCompactGuarani } from "./utils.js";
 
 const BUCKETS = [
@@ -9,7 +9,8 @@ const BUCKETS = [
 ];
 
 export function CategoryBudgetPanel({ summary }) {
-  const { inventorySettings, saveSettings } = useAppContext();
+  const { inventorySettings } = useInventoryContext();
+  const { saveSettings } = useOrchestratorContext();
   const [editing, setEditing] = useState(null); // { category, value }
   const [saving, setSaving] = useState(false);
 

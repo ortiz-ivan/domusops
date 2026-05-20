@@ -32,6 +32,7 @@ const PATHS = {
   monthlyFinanceSummary: "monthly-finance-summary/",
   householdInsights: "household-insights/",
   financialAnomalies: "financial-anomalies/",
+  dashboardSummary: "dashboard-summary/",
   settings: "settings/",
 };
 
@@ -253,4 +254,8 @@ export function getHouseholdInsights(dateFrom, dateTo, filters = {}) {
 
 export function getFinancialAnomalies(month, year) {
   return request(buildUrl(PATHS.financialAnomalies, { month, year }));
+}
+
+export function getDashboardSummary() {
+  return request(PATHS.dashboardSummary);
 }

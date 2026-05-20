@@ -1,10 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
   getMonthlyFinanceSummary,
-  listFinancialEvents,
   listFixedExpenses,
   listIncomes,
-  listMonthlyCloses,
   listVariableExpenses,
 } from "../api.js";
 
@@ -38,34 +36,26 @@ export function FinanceProvider({ children, onError }) {
   const [incomes, setIncomes] = useState([]);
   const [variableExpenses, setVariableExpenses] = useState([]);
   const [financeSummary, setFinanceSummary] = useState(EMPTY_FINANCE_SUMMARY);
-  const [financialEvents, setFinancialEvents] = useState([]);
-  const [monthlyCloses, setMonthlyCloses] = useState([]);
   const [selectedFinancePeriod, setSelectedFinancePeriod] = useState(null);
 
   const refreshFinance = useCallback(async () => {
     const month = selectedFinancePeriod?.month;
     const year = selectedFinancePeriod?.year;
     try {
-      const [fixed, income, variable, summary, events, closes] = await Promise.all([
+      const [fixed, income, variable, summary] = await Promise.all([
         listFixedExpenses(month, year),
         listIncomes(month, year),
         listVariableExpenses(month, year),
         getMonthlyFinanceSummary(month, year),
-        listFinancialEvents(month, year),
-        listMonthlyCloses(),
       ]);
       setFixedExpenses(fixed || []);
       setIncomes(income || []);
       setVariableExpenses(variable || []);
       if (summary) setFinanceSummary(summary);
-      setFinancialEvents(events || []);
-      setMonthlyCloses(closes || []);
     } catch (err) {
       setFixedExpenses([]);
       setIncomes([]);
       setVariableExpenses([]);
-      setFinancialEvents([]);
-      setMonthlyCloses([]);
       onError?.(err.message || "Error al cargar datos financieros.");
     }
   }, [selectedFinancePeriod, onError]);
@@ -80,8 +70,6 @@ export function FinanceProvider({ children, onError }) {
       incomes,
       variableExpenses,
       financeSummary,
-      financialEvents,
-      monthlyCloses,
       selectedFinancePeriod,
       setSelectedFinancePeriod,
       refreshFinance,

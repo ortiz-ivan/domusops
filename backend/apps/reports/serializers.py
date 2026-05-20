@@ -121,3 +121,42 @@ class MonthlyFinanceSummarySerializer(serializers.Serializer):
     category_breakdown = CategoryBudgetItemSerializer(many=True)
     monthly_close = MonthlyCloseSerializer(allow_null=True)
     projection = MonthlyProjectionSerializer()
+
+
+class DashboardCriticalProductSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    category = serializers.CharField()
+    stock = serializers.FloatField()
+    stock_min = serializers.FloatField()
+    unit = serializers.CharField()
+
+
+class DashboardTaskSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    due_date = serializers.DateField()
+    priority = serializers.CharField()
+    category = serializers.CharField()
+
+
+class DashboardGoalSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    goal_type = serializers.CharField()
+    target_amount = serializers.FloatField()
+    current_amount = serializers.FloatField()
+    progress_pct = serializers.FloatField()
+    days_left = serializers.IntegerField(allow_null=True)
+
+
+class DashboardSummarySerializer(serializers.Serializer):
+    month = serializers.IntegerField()
+    year = serializers.IntegerField()
+    finance_summary = MonthlyFinanceSummarySerializer()
+    critical_products = DashboardCriticalProductSerializer(many=True)
+    overdue_tasks = DashboardTaskSerializer(many=True)
+    upcoming_tasks = DashboardTaskSerializer(many=True)
+    lagging_goals = DashboardGoalSerializer(many=True)
+    anomalies = FinancialAnomalySerializer(many=True)
+    anomalies_lookback_months = serializers.IntegerField()

@@ -676,3 +676,99 @@ def detect_financial_anomalies(month: int, year: int, today=None) -> dict:
         "lookback_months": lookback_count,
         "anomalies": anomalies,
     }
+
+
+def get_dashboard_summary(today=None) -> dict:
+    from datetime import timedelta
+
+    from apps.goals.models import SavingsGoal
+    from apps.goals.services import get_goal_progress
+    from apps.household.models import TaskOccurrence
+
+    today = today or timezone.localdate()
+    month, year = get_active_financial_period()
+    settings_data = InventorySettings.get_solo().get_config()
+
+    finance_summary = calculate_monthly_finance_summary(month, year)
+
+    critical_ratio = float(settings_data.get("thresholds", {}).get("critical_stock_ratio", 1))
+    critical_frequencies = settings_data.get("alerts", {}).get("critical_frequencies", ["high"])
+
+    critical_products = []
+    for p in Product.objects.filter(is_active=True).order_by("name"):
+        if (
+            p.stock <= float(p.stock_min or 0) * critical_ratio
+            and p.usage_frequency in critical_frequencies
+        ):
+            critical_products.append({
+                "id": p.id,
+                "name": p.name,
+                "category": p.category,
+                "stock": float(p.stock),
+                "stock_min": float(p.stock_min or 0),
+                "unit": p.unit or "",
+            })
+            if len(critical_products) >= 5:
+                break
+
+    overdue_qs = (
+        TaskOccurrence.objects
+        .filter(status="pending", due_date__lt=today)
+        .select_related("recurring_task")
+        .order_by("due_date")
+    )
+    overdue_tasks = [
+        {
+            "id": o.id,
+            "title": o.recurring_task.title,
+            "due_date": o.due_date.isoformat(),
+            "priority": o.recurring_task.priority,
+            "category": o.recurring_task.category,
+        }
+        for o in overdue_qs
+    ]
+
+    upcoming_qs = (
+        TaskOccurrence.objects
+        .filter(status="pending", due_date__gte=today, due_date__lte=today + timedelta(days=7))
+        .select_related("recurring_task")
+        .order_by("due_date")
+    )
+    upcoming_tasks = [
+        {
+            "id": o.id,
+            "title": o.recurring_task.title,
+            "due_date": o.due_date.isoformat(),
+            "priority": o.recurring_task.priority,
+            "category": o.recurring_task.category,
+        }
+        for o in upcoming_qs
+    ]
+
+    lagging_goals = []
+    for goal in SavingsGoal.objects.filter(is_active=True):
+        progress = get_goal_progress(goal)
+        if progress["progress_pct"] < 20:
+            lagging_goals.append({
+                "id": goal.id,
+                "name": goal.name,
+                "goal_type": goal.goal_type,
+                "target_amount": float(goal.target_amount),
+                "current_amount": float(goal.current_amount),
+                "progress_pct": progress["progress_pct"],
+                "days_left": progress["days_left"],
+            })
+
+    anomalies_data = detect_financial_anomalies(month, year, today=today)
+
+    return {
+        "month": month,
+        "year": year,
+        "finance_summary": finance_summary,
+        "critical_products": critical_products,
+        "overdue_tasks": overdue_tasks,
+        "upcoming_tasks": upcoming_tasks,
+        "lagging_goals": lagging_goals,
+        "anomalies": anomalies_data["anomalies"],
+        "anomalies_lookback_months": anomalies_data["lookback_months"],
+    }

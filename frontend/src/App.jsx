@@ -18,7 +18,16 @@ import {
   Zap,
 } from "lucide-react";
 import "./App.css";
-import { AppProvider, useAppContext } from "./context/AppContext.jsx";
+import {
+  AppProvider,
+  useAppErrorContext,
+  useFinanceContext,
+  useHouseholdContext,
+  useInventoryContext,
+  useOrchestratorContext,
+  useReportsContext,
+} from "./context/AppContext.jsx";
+import { buildNotificationGroups, NotificationPanel } from "./components/NotificationPanel.jsx";
 import { PurchasesView } from "./components/PurchasesView.jsx";
 import { ExpensesPanel } from "./components/ExpensesPanel.jsx";
 import { ReportsView } from "./components/ReportsView.jsx";
@@ -139,7 +148,7 @@ function DashboardView({
         <article className="alert-card alert-warning">
           <header>
             <span className="alert-icon"><CalendarDays size={14} /></span>
-            <h3>Vence manana</h3>
+            <h3>Vence mañana</h3>
           </header>
           <strong>{householdReminderSummary.tomorrow.length} tareas</strong>
           <p>Te ayuda a preparar compras, limpieza o pagos antes del siguiente dia.</p>
@@ -213,25 +222,12 @@ function DashboardView({
 }
 
 function AppShell() {
-  const {
-    products,
-    fixedExpenses,
-    incomes,
-    variableExpenses,
-    financialEvents,
-    monthlyCloses,
-    householdOccurrences,
-    inventorySettings,
-    financeSummary,
-    loading,
-    loadingSettings,
-    selectedFinancePeriod,
-    setSelectedFinancePeriod,
-    refreshAllData,
-    saveSettings,
-    appError,
-    clearAppError,
-  } = useAppContext();
+  const { products, inventorySettings, loadingSettings, loadingProducts: loading } = useInventoryContext();
+  const { fixedExpenses, incomes, variableExpenses, financeSummary, selectedFinancePeriod, setSelectedFinancePeriod } = useFinanceContext();
+  const { financialEvents, monthlyCloses } = useReportsContext();
+  const { householdOccurrences } = useHouseholdContext();
+  const { refreshAllData, saveSettings } = useOrchestratorContext();
+  const { appError, clearAppError } = useAppErrorContext();
 
   const [route, setRoute] = useState("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -286,12 +282,24 @@ function AppShell() {
   const householdAgendaSummary = getHouseholdAgendaBuckets(householdOccurrences);
   const householdReminderSummary = getHouseholdReminderSummary(householdOccurrences);
 
+  const dueSoonFixedExpenses = fixedExpenses
+    .filter((e) => e.is_active && e.next_due_date)
+    .map((e) => ({ ...e, daysLeft: daysBetween(e.next_due_date) }))
+    .filter((e) => e.daysLeft !== null && e.daysLeft >= 0 && e.daysLeft <= 7)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  const notificationGroups = buildNotificationGroups({
+    overdueOccurrences: householdReminderSummary.overdue,
+    criticalItems,
+    dueSoonFixedExpenses,
+  });
+
   const reminderHeadline = householdReminderSummary.overdue.length > 0
     ? `${householdReminderSummary.overdue.length} tarea(s) atrasadas requieren atencion inmediata.`
     : householdReminderSummary.today.length > 0
       ? `${householdReminderSummary.today.length} tarea(s) vencen hoy.`
       : householdReminderSummary.tomorrow.length > 0
-        ? `${householdReminderSummary.tomorrow.length} tarea(s) vencen manana.`
+        ? `${householdReminderSummary.tomorrow.length} tarea(s) vencen mañana.`
         : householdReminderSummary.weekUpcoming.length > 0
           ? `${householdReminderSummary.weekUpcoming.length} tarea(s) quedan pendientes esta semana.`
           : "No hay recordatorios urgentes del hogar ahora mismo.";
@@ -357,6 +365,8 @@ function AppShell() {
           </div>
 
           <div className="topbar-actions">
+            <NotificationPanel groups={notificationGroups} />
+
             {showFinancePeriodSelector && (
               <div className="period-control">
                 <label className="period-control-label" htmlFor="finance-period-input">
@@ -416,7 +426,7 @@ function AppShell() {
           <div className="reminder-strip-badges">
             <span className="badge low-stock">Atrasadas: {householdReminderSummary.overdue.length}</span>
             <span className="badge">Hoy: {householdReminderSummary.today.length}</span>
-            <span className="badge">Manana: {householdReminderSummary.tomorrow.length}</span>
+            <span className="badge">Mañana: {householdReminderSummary.tomorrow.length}</span>
             <span className="badge">Semana: {householdReminderSummary.weekUpcoming.length}</span>
           </div>
         </section>

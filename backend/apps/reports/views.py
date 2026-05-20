@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from .models import FinancialEvent, MonthlyClose
 from .serializers import (
+    DashboardSummarySerializer,
     FinancialAnomaliesReportSerializer,
     FinancialEventSerializer,
     MonthlyCloseSerializer,
@@ -15,6 +16,7 @@ from .services import (
     create_monthly_close,
     detect_financial_anomalies,
     get_active_financial_period,
+    get_dashboard_summary,
 )
 
 
@@ -106,3 +108,11 @@ class FinancialAnomaliesView(APIView):
 
         data = detect_financial_anomalies(month, year)
         return Response(FinancialAnomaliesReportSerializer(data).data)
+
+
+class DashboardSummaryView(APIView):
+    serializer_class = DashboardSummarySerializer
+
+    def get(self, request):
+        data = get_dashboard_summary()
+        return Response(DashboardSummarySerializer(data).data)
