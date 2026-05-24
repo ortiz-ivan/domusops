@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useLocalStorage } from "./hooks/useLocalStorage.js";
+import { useTheme } from "./hooks/useTheme.js";
 import {
   BarChart2,
   ChevronsLeft,
@@ -6,11 +9,13 @@ import {
   FileText,
   Home,
   LayoutDashboard,
+  Moon,
   Package,
   PiggyBank,
   Plus,
   Settings,
   ShoppingCart,
+  Sun,
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
@@ -45,6 +50,15 @@ import {
   getUsageFrequencyWeight,
   isHomeInventoryCategory,
 } from "./constants/inventory.js";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
 
 const MODULES = [
   { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={15} /> },
@@ -198,13 +212,14 @@ function useAppShellState(searchQuery) {
 // ---------------------------------------------------------------------------
 
 function AppShell() {
+  const { theme, toggleTheme } = useTheme();
   const { inventorySettings, loadingSettings, loadingProducts: loading } = useInventoryContext();
   const { fixedExpenses, incomes, variableExpenses, financeSummary, selectedFinancePeriod, setSelectedFinancePeriod } = useFinanceContext();
   const { financialEvents, monthlyCloses } = useReportsContext();
   const { refreshAllData, saveSettings } = useOrchestratorContext();
   const { appError, clearAppError } = useAppErrorContext();
 
-  const [route, setRoute] = useState("dashboard");
+  const [route, setRoute] = useLocalStorage("app-route", "dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -296,6 +311,16 @@ function AppShell() {
           </div>
 
           <div className="topbar-actions">
+            <button
+              className="btn btn-outline"
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+              style={{ width: 36, height: 36, padding: 0, display: "inline-grid", placeItems: "center", flexShrink: 0 }}
+            >
+              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
             <NotificationPanel groups={notificationGroups} />
 
             {showFinancePeriodSelector && (
@@ -462,9 +487,11 @@ function AppShell() {
 
 function App() {
   return (
-    <AppProvider>
-      <AppShell />
-    </AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <AppShell />
+      </AppProvider>
+    </QueryClientProvider>
   );
 }
 

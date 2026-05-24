@@ -1,50 +1,72 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getInventorySettings, listProducts } from "../api.js";
 import { normalizeInventorySettings, setCurrentInventorySettings } from "../constants/inventory.js";
+
+export const INVENTORY_KEYS = {
+  products: ["inventory", "products"],
+  settings: ["inventory", "settings"],
+};
 
 const InventoryContext = createContext(null);
 
 export function InventoryProvider({ children, onError }) {
-  const [products, setProducts] = useState([]);
-  const [inventorySettings, setInventorySettings] = useState(() => normalizeInventorySettings());
-  const [loadingSettings, setLoadingSettings] = useState(true);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+  const queryClient = useQueryClient();
 
-  const updateSettings = useCallback((next) => {
-    setInventorySettings(next);
-    setCurrentInventorySettings(next);
-  }, []);
+  const {
+    data: productsData,
+    isLoading: loadingProducts,
+    error: productsError,
+  } = useQuery({
+    queryKey: INVENTORY_KEYS.products,
+    queryFn: () => listProducts().then((d) => d || []),
+  });
 
-  const refreshSettings = useCallback(async () => {
-    setLoadingSettings(true);
-    try {
-      const data = await getInventorySettings();
-      updateSettings(normalizeInventorySettings(data));
-    } catch (err) {
-      updateSettings(normalizeInventorySettings());
-      onError?.(err.message || "Error al cargar configuracion. Usando valores por defecto.");
-    } finally {
-      setLoadingSettings(false);
-    }
-  }, [onError, updateSettings]);
+  const {
+    data: settingsData,
+    isLoading: loadingSettings,
+    error: settingsError,
+  } = useQuery({
+    queryKey: INVENTORY_KEYS.settings,
+    queryFn: getInventorySettings,
+    staleTime: 5 * 60_000,
+  });
 
-  const refreshProducts = useCallback(async () => {
-    setLoadingProducts(true);
-    try {
-      const data = await listProducts();
-      setProducts(data || []);
-    } catch (err) {
-      setProducts([]);
-      onError?.(err.message || "Error al cargar productos.");
-    } finally {
-      setLoadingProducts(false);
-    }
-  }, [onError]);
+  const products = productsData ?? [];
+  const inventorySettings = useMemo(
+    () => normalizeInventorySettings(settingsData),
+    [settingsData],
+  );
 
   useEffect(() => {
-    refreshSettings();
-    refreshProducts();
-  }, [refreshSettings, refreshProducts]);
+    setCurrentInventorySettings(inventorySettings);
+  }, [inventorySettings]);
+
+  useEffect(() => {
+    if (productsError) onError?.(productsError.message || "Error al cargar productos.");
+  }, [productsError, onError]);
+
+  useEffect(() => {
+    if (settingsError) onError?.(settingsError.message || "Error al cargar configuracion. Usando valores por defecto.");
+  }, [settingsError, onError]);
+
+  const updateSettings = useCallback(
+    (rawApiResponse) => {
+      queryClient.setQueryData(INVENTORY_KEYS.settings, rawApiResponse);
+      setCurrentInventorySettings(normalizeInventorySettings(rawApiResponse));
+    },
+    [queryClient],
+  );
+
+  const refreshProducts = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.products }),
+    [queryClient],
+  );
+
+  const refreshSettings = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.settings }),
+    [queryClient],
+  );
 
   return (
     <InventoryContext.Provider value={{

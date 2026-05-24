@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { updateInventorySettings } from "../api.js";
-import { normalizeInventorySettings } from "../constants/inventory.js";
 import { FinanceProvider, useFinanceContext } from "./FinanceContext.jsx";
 import { HouseholdProvider, useHouseholdContext } from "./HouseholdContext.jsx";
 import { InventoryProvider, useInventoryContext } from "./InventoryContext.jsx";
@@ -17,7 +17,6 @@ export function useAppErrorContext() {
 }
 
 // ─── Orchestrator context ─────────────────────────────────────────────────────
-// Lives inside all domain providers so it can call their refresh functions.
 
 const AppOrchestratorContext = createContext(null);
 
@@ -28,27 +27,23 @@ export function useOrchestratorContext() {
 }
 
 function AppOrchestrator({ children }) {
-  const { refreshProducts, updateSettings } = useInventoryContext();
-  const { refreshFinance } = useFinanceContext();
-  const { refreshReports } = useReportsContext();
-  const { refreshHousehold } = useHouseholdContext();
+  const queryClient = useQueryClient();
   const { setAppError } = useContext(AppErrorContext);
 
-  const refreshAllData = useCallback(async () => {
-    await Promise.all([refreshProducts(), refreshFinance(), refreshReports(), refreshHousehold()]);
-  }, [refreshProducts, refreshFinance, refreshReports, refreshHousehold]);
+  const refreshAllData = useCallback(
+    () => queryClient.invalidateQueries(),
+    [queryClient],
+  );
 
   const saveSettings = useCallback(async (nextSettings) => {
     try {
-      const response = await updateInventorySettings(nextSettings);
-      const updated = normalizeInventorySettings(response);
-      updateSettings(updated);
-      await refreshAllData();
+      await updateInventorySettings(nextSettings);
+      await queryClient.invalidateQueries();
     } catch (err) {
       setAppError(err.message || "Error al guardar configuracion.");
       throw err;
     }
-  }, [updateSettings, refreshAllData, setAppError]);
+  }, [queryClient, setAppError]);
 
   return (
     <AppOrchestratorContext.Provider value={{ refreshAllData, saveSettings }}>

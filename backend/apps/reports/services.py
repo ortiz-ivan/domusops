@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Prefetch, Sum
 from django.utils import timezone
 
 from apps.configuration.models import (
@@ -597,12 +597,15 @@ def _detect_restock_anomalies(
     today = today or timezone.localdate()
     anomalies = []
 
-    for product in Product.objects.filter(is_active=True, type="consumable"):
-        restock_dates = list(
-            ProductRestock.objects.filter(product=product)
-            .order_by("date")
-            .values_list("date", flat=True)
+    products = Product.objects.filter(is_active=True, type="consumable").prefetch_related(
+        Prefetch(
+            "restocks",
+            queryset=ProductRestock.objects.order_by("date"),
+            to_attr="restocks_prefetched",
         )
+    )
+    for product in products:
+        restock_dates = [r.date for r in product.restocks_prefetched]
         if len(restock_dates) < min_restocks:
             continue
 

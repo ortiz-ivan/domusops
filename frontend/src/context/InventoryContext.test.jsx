@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { InventoryProvider, useInventoryContext } from './InventoryContext.jsx'
 
 vi.mock('../api.js', () => ({
@@ -13,6 +14,15 @@ const MOCK_PRODUCTS = [
   { id: 1, name: 'Arroz', category: 'food', stock: 5 },
   { id: 2, name: 'Detergente', category: 'cleaning', stock: 2 },
 ]
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: 0, gcTime: 0 } },
+  })
+  return ({ children }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  )
+}
 
 function ProductList() {
   const { products, loadingProducts, loadingSettings } = useInventoryContext()
@@ -44,7 +54,8 @@ describe('InventoryProvider', () => {
     render(
       <InventoryProvider>
         <span>ok</span>
-      </InventoryProvider>
+      </InventoryProvider>,
+      { wrapper: createWrapper() }
     )
     expect(screen.getByText('ok')).toBeInTheDocument()
   })
@@ -53,7 +64,8 @@ describe('InventoryProvider', () => {
     render(
       <InventoryProvider>
         <ProductList />
-      </InventoryProvider>
+      </InventoryProvider>,
+      { wrapper: createWrapper() }
     )
     await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument())
     expect(screen.getByText('Arroz')).toBeInTheDocument()
@@ -65,7 +77,8 @@ describe('InventoryProvider', () => {
     render(
       <InventoryProvider>
         <SettingsDisplay />
-      </InventoryProvider>
+      </InventoryProvider>,
+      { wrapper: createWrapper() }
     )
     await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument())
     expect(screen.getByTestId('currency').textContent).toBe('PYG')
@@ -77,7 +90,8 @@ describe('InventoryProvider', () => {
     render(
       <InventoryProvider onError={onError}>
         <ProductList />
-      </InventoryProvider>
+      </InventoryProvider>,
+      { wrapper: createWrapper() }
     )
     await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument())
     expect(screen.getByText('empty')).toBeInTheDocument()
@@ -90,7 +104,8 @@ describe('InventoryProvider', () => {
     render(
       <InventoryProvider onError={onError}>
         <SettingsDisplay />
-      </InventoryProvider>
+      </InventoryProvider>,
+      { wrapper: createWrapper() }
     )
     await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument())
     // Falls back to DEFAULT_INVENTORY_SETTINGS (currency PYG)

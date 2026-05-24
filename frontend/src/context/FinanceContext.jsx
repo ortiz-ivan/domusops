@@ -1,10 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getMonthlyFinanceSummary,
   listFixedExpenses,
   listIncomes,
   listVariableExpenses,
 } from "../api.js";
+import { useLocalStorage } from "../hooks/useLocalStorage.js";
+
+export const FINANCE_KEYS = {
+  all: ["finance"],
+  summary: (month, year) => ["finance", "summary", month, year],
+  fixedExpenses: (month, year) => ["finance", "fixed-expenses", month, year],
+  incomes: (month, year) => ["finance", "incomes", month, year],
+  variableExpenses: (month, year) => ["finance", "variable-expenses", month, year],
+};
 
 const EMPTY_FINANCE_SUMMARY = {
   month: new Date().getMonth() + 1,
@@ -32,37 +42,46 @@ const EMPTY_FINANCE_SUMMARY = {
 const FinanceContext = createContext(null);
 
 export function FinanceProvider({ children, onError }) {
-  const [fixedExpenses, setFixedExpenses] = useState([]);
-  const [incomes, setIncomes] = useState([]);
-  const [variableExpenses, setVariableExpenses] = useState([]);
-  const [financeSummary, setFinanceSummary] = useState(EMPTY_FINANCE_SUMMARY);
-  const [selectedFinancePeriod, setSelectedFinancePeriod] = useState(null);
+  const queryClient = useQueryClient();
+  const [selectedFinancePeriod, setSelectedFinancePeriod] = useLocalStorage("finance-period", null);
 
-  const refreshFinance = useCallback(async () => {
-    const month = selectedFinancePeriod?.month;
-    const year = selectedFinancePeriod?.year;
-    try {
-      const [fixed, income, variable, summary] = await Promise.all([
-        listFixedExpenses(month, year),
-        listIncomes(month, year),
-        listVariableExpenses(month, year),
-        getMonthlyFinanceSummary(month, year),
-      ]);
-      setFixedExpenses(fixed || []);
-      setIncomes(income || []);
-      setVariableExpenses(variable || []);
-      if (summary) setFinanceSummary(summary);
-    } catch (err) {
-      setFixedExpenses([]);
-      setIncomes([]);
-      setVariableExpenses([]);
-      onError?.(err.message || "Error al cargar datos financieros.");
-    }
-  }, [selectedFinancePeriod, onError]);
+  const month = selectedFinancePeriod?.month;
+  const year = selectedFinancePeriod?.year;
+
+  const { data: fixedExpensesData, error: feError } = useQuery({
+    queryKey: FINANCE_KEYS.fixedExpenses(month, year),
+    queryFn: () => listFixedExpenses(month, year).then((d) => d || []),
+  });
+
+  const { data: incomesData, error: incError } = useQuery({
+    queryKey: FINANCE_KEYS.incomes(month, year),
+    queryFn: () => listIncomes(month, year).then((d) => d || []),
+  });
+
+  const { data: variableExpensesData, error: veError } = useQuery({
+    queryKey: FINANCE_KEYS.variableExpenses(month, year),
+    queryFn: () => listVariableExpenses(month, year).then((d) => d || []),
+  });
+
+  const { data: financeSummaryData, error: fsError } = useQuery({
+    queryKey: FINANCE_KEYS.summary(month, year),
+    queryFn: () => getMonthlyFinanceSummary(month, year),
+  });
+
+  const fixedExpenses = fixedExpensesData ?? [];
+  const incomes = incomesData ?? [];
+  const variableExpenses = variableExpensesData ?? [];
+  const financeSummary = financeSummaryData ?? EMPTY_FINANCE_SUMMARY;
 
   useEffect(() => {
-    refreshFinance();
-  }, [refreshFinance]);
+    const err = feError || incError || veError || fsError;
+    if (err) onError?.(err.message || "Error al cargar datos financieros.");
+  }, [feError, incError, veError, fsError, onError]);
+
+  const refreshFinance = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: FINANCE_KEYS.all }),
+    [queryClient],
+  );
 
   return (
     <FinanceContext.Provider value={{

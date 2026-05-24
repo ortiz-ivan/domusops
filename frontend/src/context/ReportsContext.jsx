@@ -1,34 +1,45 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listFinancialEvents, listMonthlyCloses } from "../api.js";
 import { useFinanceContext } from "./FinanceContext.jsx";
+
+export const REPORTS_KEYS = {
+  all: ["reports"],
+  events: (month, year) => ["reports", "events", month, year],
+  monthlyCloses: ["reports", "monthly-closes"],
+};
 
 const ReportsContext = createContext(null);
 
 export function ReportsProvider({ children, onError }) {
+  const queryClient = useQueryClient();
   const { selectedFinancePeriod } = useFinanceContext();
-  const [financialEvents, setFinancialEvents] = useState([]);
-  const [monthlyCloses, setMonthlyCloses] = useState([]);
+  const month = selectedFinancePeriod?.month;
+  const year = selectedFinancePeriod?.year;
 
-  const refreshReports = useCallback(async () => {
-    const month = selectedFinancePeriod?.month;
-    const year = selectedFinancePeriod?.year;
-    try {
-      const [events, closes] = await Promise.all([
-        listFinancialEvents(month, year),
-        listMonthlyCloses(),
-      ]);
-      setFinancialEvents(events || []);
-      setMonthlyCloses(closes || []);
-    } catch (err) {
-      setFinancialEvents([]);
-      setMonthlyCloses([]);
-      onError?.(err.message || "Error al cargar historial financiero.");
-    }
-  }, [selectedFinancePeriod, onError]);
+  const { data: eventsData, error: eventsError } = useQuery({
+    queryKey: REPORTS_KEYS.events(month, year),
+    queryFn: () => listFinancialEvents(month, year).then((d) => d || []),
+  });
+
+  const { data: closesData, error: closesError } = useQuery({
+    queryKey: REPORTS_KEYS.monthlyCloses,
+    queryFn: () => listMonthlyCloses().then((d) => d || []),
+    staleTime: 60_000,
+  });
+
+  const financialEvents = eventsData ?? [];
+  const monthlyCloses = closesData ?? [];
 
   useEffect(() => {
-    refreshReports();
-  }, [refreshReports]);
+    const err = eventsError || closesError;
+    if (err) onError?.(err.message || "Error al cargar historial financiero.");
+  }, [eventsError, closesError, onError]);
+
+  const refreshReports = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: REPORTS_KEYS.all }),
+    [queryClient],
+  );
 
   return (
     <ReportsContext.Provider value={{ financialEvents, monthlyCloses, refreshReports }}>

@@ -1,4 +1,40 @@
+@import "tailwindcss";
+
+/* Dark mode activates when <html> has the .dark class */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Light theme (default) ──────────────────────────────────── */
 :root {
+  --bg-base: #f4f6fb;
+  --bg-surface: #ffffff;
+  --bg-elevated: #eef0f7;
+  --bg-hover: #e6e9f5;
+  --border: #d8dce9;
+  --border-hover: #adb5cd;
+  --text-primary: #111827;
+  --text-secondary: #4a5168;
+  --text-muted: #8b94ad;
+  --accent: #4f7cff;
+  --accent-dim: #e8edff;
+  --success: #16a34a;
+  --success-dim: #dcfce7;
+  --warning: #d97706;
+  --warning-dim: #fef3c7;
+  --danger: #dc2626;
+  --danger-dim: #fee2e2;
+  --sidebar-bg: #1a1d2e;
+  --sidebar-gradient-end: #131624;
+  --sidebar-active: #252942;
+  --topbar-bg-glass: rgba(244, 246, 251, 0.88);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --font-size-base: 14px;
+  --line-height: 1.4;
+  --font-family: "DM Sans", "Inter", system-ui, sans-serif;
+}
+
+/* ── Dark theme ─────────────────────────────────────────────── */
+.dark {
   --bg-base: #0f1117;
   --bg-surface: #1a1d27;
   --bg-elevated: #22263a;
@@ -17,19 +53,19 @@
   --danger: #ef4444;
   --danger-dim: #2a0d0d;
   --sidebar-bg: #0c0e16;
+  --sidebar-gradient-end: #0a0c14;
   --sidebar-active: #1a2040;
-  --font-size-base: 14px;
-  --line-height: 1.4;
-  --font-family: "DM Sans", "Inter", system-ui, sans-serif;
+  --topbar-bg-glass: rgba(15, 17, 23, 0.85);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
-* {
+/* ── Base resets ─────────────────────────────────────────────── */
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
-html,
-body,
-#root {
+html, body, #root {
   margin: 0;
   min-height: 100%;
 }
@@ -43,18 +79,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p {
-  margin: 0;
-}
+h1, h2, h3, h4, h5, h6, p { margin: 0; }
 
-button,
-input,
-select {
-  font: inherit;
-}
+button, input, select { font: inherit; }

@@ -1,18 +1,14 @@
 :root {
+  /* Aliases pointing to theme tokens defined in index.css */
   --bg: var(--bg-base);
   --surface: var(--bg-surface);
   --surface-muted: var(--bg-hover);
   --surface-elevated: var(--bg-elevated);
   --text: var(--text-primary);
   --text-soft: var(--text-secondary);
-  --text-muted: #4a4e65;
   --primary: var(--accent);
   --primary-soft: var(--accent-dim);
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  /* Layout + non-theme tokens */
   --shadow-glow-accent: 0 0 20px rgba(79, 124, 255, 0.15);
   --radius-sm: 8px;
   --radius-md: 10px;
@@ -1781,7 +1777,7 @@ select:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px;
-  background: rgba(255, 255, 255, 0.68);
+  background: var(--bg-surface);
 }
 
 .fixed-expense-detail-card span {
@@ -1863,7 +1859,7 @@ select:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 14px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--bg-surface);
 }
 
 .purchase-group-title p {
@@ -1980,7 +1976,13 @@ select:focus {
 }
 
 .sidebar {
-  background: linear-gradient(180deg, var(--sidebar-bg) 0%, #0d0f1d 100%);
+  background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-gradient-end) 100%);
+  /* Sidebar is always dark regardless of page theme */
+  --text-primary: #e8eaf0;
+  --text-secondary: #7b8099;
+  --text-muted: #4a4e65;
+  --border: #2a2d3e;
+  --border-hover: #3a3f55;
   color: var(--text-primary);
   border-right: 1px solid var(--border);
   box-shadow: none;
@@ -2097,7 +2099,7 @@ label {
 
 .topbar {
   min-height: 44px;
-  background: rgba(15, 17, 23, 0.85);
+  background: var(--topbar-bg-glass);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
