@@ -1,6 +1,7 @@
 import calendar
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Prefetch, Sum
@@ -18,7 +19,7 @@ from apps.purchases.models import Product, ProductRestock
 from .models import FinancialEvent, MonthlyClose
 
 
-def _normalize_change_reason(reason, default_reason="", required=False):
+def _normalize_change_reason(reason: Any, default_reason: str = "", required: bool = False) -> str:
     value = str(reason or "").strip()
 
     if required and not value:
@@ -27,7 +28,7 @@ def _normalize_change_reason(reason, default_reason="", required=False):
     return value or default_reason
 
 
-def _to_decimal(value, default="0"):
+def _to_decimal(value: Any, default: str = "0") -> Decimal:
     if value is None:
         return Decimal(default)
 
@@ -37,7 +38,7 @@ def _to_decimal(value, default="0"):
     return Decimal(str(value))
 
 
-def _to_json_ready(value):
+def _to_json_ready(value: Any) -> Any:
     if isinstance(value, Decimal):
         return float(value)
 
@@ -53,7 +54,7 @@ def _to_json_ready(value):
     return value
 
 
-def _snapshot_income(income: Income):
+def _snapshot_income(income: Income) -> dict[str, Any]:
     return _to_json_ready({
         "id": income.id,
         "amount": income.amount,
@@ -63,7 +64,7 @@ def _snapshot_income(income: Income):
     })
 
 
-def _snapshot_variable_expense(expense: VariableExpense):
+def _snapshot_variable_expense(expense: VariableExpense) -> dict[str, Any]:
     return _to_json_ready({
         "id": expense.id,
         "amount": expense.amount,
@@ -75,7 +76,7 @@ def _snapshot_variable_expense(expense: VariableExpense):
     })
 
 
-def _snapshot_fixed_expense(expense: FixedExpense):
+def _snapshot_fixed_expense(expense: FixedExpense) -> dict[str, Any]:
     return _to_json_ready({
         "id": expense.id,
         "name": expense.name,
@@ -87,7 +88,7 @@ def _snapshot_fixed_expense(expense: FixedExpense):
     })
 
 
-def _snapshot_fixed_payment(payment: FixedExpensePayment):
+def _snapshot_fixed_payment(payment: FixedExpensePayment) -> dict[str, Any]:
     return _to_json_ready({
         "id": payment.id,
         "fixed_expense_id": payment.fixed_expense_id,
@@ -97,7 +98,7 @@ def _snapshot_fixed_payment(payment: FixedExpensePayment):
     })
 
 
-def _snapshot_monthly_close(monthly_close: MonthlyClose):
+def _snapshot_monthly_close(monthly_close: MonthlyClose) -> dict[str, Any]:
     return _to_json_ready({
         "id": monthly_close.id,
         "month": monthly_close.month,
@@ -110,17 +111,17 @@ def _snapshot_monthly_close(monthly_close: MonthlyClose):
 
 def _record_financial_event(
     *,
-    entity_type,
-    action,
-    entity_id,
-    title,
-    amount,
-    effective_date,
-    reason="",
-    previous_data=None,
-    current_data=None,
-    metadata=None,
-):
+    entity_type: str,
+    action: str,
+    entity_id: int,
+    title: str,
+    amount: Decimal | float | int,
+    effective_date: date | None,
+    reason: str = "",
+    previous_data: dict[str, Any] | None = None,
+    current_data: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> FinancialEvent:
     effective_date = effective_date or timezone.localdate()
     return FinancialEvent.objects.create(
         entity_type=entity_type,
@@ -138,26 +139,26 @@ def _record_financial_event(
     )
 
 
-def _add_one_month(target_date):
+def _add_one_month(target_date: date) -> date:
     year = target_date.year + (1 if target_date.month == 12 else 0)
     month = 1 if target_date.month == 12 else target_date.month + 1
     day = min(target_date.day, calendar.monthrange(year, month)[1])
     return target_date.replace(year=year, month=month, day=day)
 
 
-def _get_next_month_period(month: int, year: int):
+def _get_next_month_period(month: int, year: int) -> tuple[int, int]:
     if month == 12:
         return 1, year + 1
     return month + 1, year
 
 
-def _get_previous_month_period(month: int, year: int):
+def _get_previous_month_period(month: int, year: int) -> tuple[int, int]:
     if month == 1:
         return 12, year - 1
     return month - 1, year
 
 
-def _ensure_automatic_monthly_close(today=None):
+def _ensure_automatic_monthly_close(today: date | None = None) -> "MonthlyClose | None":
     reference_date = today or timezone.localdate()
     previous_month, previous_year = _get_previous_month_period(reference_date.month, reference_date.year)
 
@@ -172,7 +173,7 @@ def _ensure_automatic_monthly_close(today=None):
     )
 
 
-def get_active_financial_period():
+def get_active_financial_period() -> tuple[int, int]:
     _ensure_automatic_monthly_close()
     today = timezone.localdate()
     current_period = (today.year, today.month)
@@ -190,7 +191,7 @@ def get_active_financial_period():
     return today.month, today.year
 
 
-def get_active_financial_date():
+def get_active_financial_date() -> date:
     month, year = get_active_financial_period()
     today = timezone.localdate()
 
@@ -200,7 +201,7 @@ def get_active_financial_date():
     return date(year, month, 1)
 
 
-def _compute_category_breakdown(month: int, year: int, settings_data: dict) -> list:
+def _compute_category_breakdown(month: int, year: int, settings_data: dict[str, Any]) -> list[dict[str, Any]]:
     categories_config = {
         item["value"]: item
         for item in settings_data.get("categories", [])
@@ -274,7 +275,9 @@ def _compute_category_breakdown(month: int, year: int, settings_data: dict) -> l
     return sorted(result, key=lambda x: x["actual"], reverse=True)
 
 
-def _compute_monthly_projection(month: int, year: int, total_income: Decimal, today=None):
+def _compute_monthly_projection(
+    month: int, year: int, total_income: Decimal, today: date | None = None
+) -> dict[str, Any]:
     today = today or timezone.localdate()
     is_current_month = today.year == year and today.month == month
     days_total = calendar.monthrange(year, month)[1]
@@ -338,7 +341,7 @@ def _compute_monthly_projection(month: int, year: int, total_income: Decimal, to
     }
 
 
-def calculate_monthly_finance_summary(month: int, year: int):
+def calculate_monthly_finance_summary(month: int, year: int) -> dict[str, Any]:
     settings_data = InventorySettings.get_solo().get_config()
     frequency_weight = settings_data.get("usage_frequency_weights", {})
     budget_target_ratio = get_budget_bucket_ratio_map(settings_data)
@@ -459,7 +462,9 @@ def calculate_monthly_finance_summary(month: int, year: int):
     }
 
 
-def create_monthly_close(month: int, year: int, notes="", auto_generated=False):
+def create_monthly_close(
+    month: int, year: int, notes: str = "", auto_generated: bool = False
+) -> MonthlyClose:
     if month < 1 or month > 12:
         raise ValueError("El mes debe estar entre 1 y 12")
 
@@ -499,7 +504,9 @@ def create_monthly_close(month: int, year: int, notes="", auto_generated=False):
 # Anomaly detection
 # ---------------------------------------------------------------------------
 
-def _get_historical_category_averages(current_month: int, current_year: int, lookback_months: int = 3):
+def _get_historical_category_averages(
+    current_month: int, current_year: int, lookback_months: int = 3
+) -> tuple[dict[str, float], int]:
     """
     Returns (averages_dict, actual_lookback_count) where averages_dict maps
     category → average spend computed only over months where the category had
@@ -536,14 +543,14 @@ def _get_historical_category_averages(current_month: int, current_year: int, loo
 
 
 def _detect_category_spikes(
-    current_breakdown: list,
-    historical_avgs: dict,
-    settings_data: dict,
+    current_breakdown: list[dict[str, Any]],
+    historical_avgs: dict[str, float],
+    settings_data: dict[str, Any],
     lookback_count: int,
     spike_warning_pct: float = 50.0,
     spike_danger_pct: float = 100.0,
     min_historical_amount: float = 500.0,
-) -> list:
+) -> list[dict[str, Any]]:
     category_labels = {
         item["value"]: item.get("label", item["value"])
         for item in settings_data.get("categories", [])
@@ -588,12 +595,12 @@ def _detect_category_spikes(
 
 
 def _detect_restock_anomalies(
-    today=None,
+    today: date | None = None,
     fast_threshold: float = 0.5,
     slow_threshold: float = 2.0,
     min_restocks: int = 3,
     min_avg_interval_days: float = 5.0,
-) -> list:
+) -> list[dict[str, Any]]:
     today = today or timezone.localdate()
     anomalies = []
 
@@ -656,7 +663,7 @@ def _detect_restock_anomalies(
     return anomalies
 
 
-def detect_financial_anomalies(month: int, year: int, today=None) -> dict:
+def detect_financial_anomalies(month: int, year: int, today: date | None = None) -> dict[str, Any]:
     settings_data = InventorySettings.get_solo().get_config()
     current_breakdown = _compute_category_breakdown(month, year, settings_data)
     historical_avgs, lookback_count = _get_historical_category_averages(month, year)
@@ -681,7 +688,7 @@ def detect_financial_anomalies(month: int, year: int, today=None) -> dict:
     }
 
 
-def get_dashboard_summary(today=None) -> dict:
+def get_dashboard_summary(today: date | None = None) -> dict[str, Any]:
     from datetime import timedelta
 
     from apps.goals.models import SavingsGoal

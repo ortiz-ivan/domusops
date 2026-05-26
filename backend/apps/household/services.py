@@ -1,6 +1,8 @@
 import calendar
 from collections import defaultdict
-from datetime import timedelta
+from collections.abc import Iterator
+from datetime import date, timedelta
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Prefetch
@@ -14,13 +16,15 @@ from .models import RecurringTask, TaskOccurrence
 DEFAULT_SYNC_WINDOW_DAYS = 120
 
 
-def _days_until(target_date, today):
+def _days_until(target_date: date | None, today: date) -> int | None:
     if not target_date:
         return None
     return (target_date - today).days
 
 
-def build_task_linked_context(task, settings_data=None):
+def build_task_linked_context(
+    task: RecurringTask, settings_data: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
     integration_kind = task.integration_kind or RecurringTask.INTEGRATION_NONE
     if integration_kind == RecurringTask.INTEGRATION_NONE:
         return None
@@ -164,19 +168,19 @@ def build_task_linked_context(task, settings_data=None):
     }
 
 
-def _month_date(year, month, day_of_month):
+def _month_date(year: int, month: int, day_of_month: int) -> date:
     last_day = calendar.monthrange(year, month)[1]
     return RecurringTask._meta.get_field("start_date").to_python(f"{year:04d}-{month:02d}-{min(day_of_month, last_day):02d}")
 
 
-def _add_months(base_date, months, day_of_month):
+def _add_months(base_date: date, months: int, day_of_month: int) -> date:
     month_index = base_date.month - 1 + months
     year = base_date.year + month_index // 12
     month = month_index % 12 + 1
     return _month_date(year, month, day_of_month)
 
 
-def _normalize_task_payload(validated_data):
+def _normalize_task_payload(validated_data: dict[str, Any]) -> dict[str, Any]:
     return {
         "title": validated_data["title"].strip(),
         "category": validated_data.get("category", "general").strip() or "general",
@@ -193,14 +197,16 @@ def _normalize_task_payload(validated_data):
     }
 
 
-def _get_sync_window_bounds(start_date=None, horizon_days=DEFAULT_SYNC_WINDOW_DAYS):
+def _get_sync_window_bounds(
+    start_date: date | None = None, horizon_days: int = DEFAULT_SYNC_WINDOW_DAYS
+) -> tuple[date, date]:
     today = timezone.localdate()
     date_from = min(start_date or today, today)
     date_to = today + timedelta(days=horizon_days)
     return date_from, date_to
 
 
-def _iter_due_dates(task, date_from, date_to):
+def _iter_due_dates(task: RecurringTask, date_from: date, date_to: date) -> Iterator[date]:
     if not task.is_active or date_to < date_from:
         return
 
@@ -220,7 +226,13 @@ def _iter_due_dates(task, date_from, date_to):
         current_due_date = calculate_next_due_date(task, current_due_date)
 
 
-def calculate_first_due_date(start_date, frequency_type, weekday=None, day_of_month=None, interval=1):
+def calculate_first_due_date(
+    start_date: date,
+    frequency_type: str,
+    weekday: int | None = None,
+    day_of_month: int | None = None,
+    interval: int = 1,
+) -> date:
     if frequency_type == RecurringTask.FREQUENCY_DAILY:
         return start_date
 
@@ -236,7 +248,7 @@ def calculate_first_due_date(start_date, frequency_type, weekday=None, day_of_mo
     return candidate
 
 
-def calculate_next_due_date(task, current_due_date):
+def calculate_next_due_date(task: RecurringTask, current_due_date: date) -> date:
     if task.frequency_type == RecurringTask.FREQUENCY_DAILY:
         return current_due_date + timedelta(days=int(task.interval))
 
@@ -247,7 +259,9 @@ def calculate_next_due_date(task, current_due_date):
     return _add_months(current_due_date, int(task.interval), int(effective_day))
 
 
-def sync_task_occurrences(task, date_from=None, date_to=None):
+def sync_task_occurrences(
+    task: RecurringTask, date_from: date | None = None, date_to: date | None = None
+) -> None:
     if date_from is None or date_to is None:
         date_from, date_to = _get_sync_window_bounds(task.start_date)
 
@@ -275,7 +289,7 @@ def sync_task_occurrences(task, date_from=None, date_to=None):
     refresh_next_due_date(task)
 
 
-def refresh_next_due_date(task):
+def refresh_next_due_date(task: RecurringTask) -> None:
     next_pending = task.occurrences.filter(status=TaskOccurrence.STATUS_PENDING).order_by("due_date").first()
     next_due_date = next_pending.due_date if next_pending else None
 
@@ -284,7 +298,7 @@ def refresh_next_due_date(task):
         task.save(update_fields=["next_due_date", "updated_at"])
 
 
-def create_recurring_task_record(validated_data):
+def create_recurring_task_record(validated_data: dict[str, Any]) -> RecurringTask:
     payload = _normalize_task_payload(validated_data)
 
     with transaction.atomic():
@@ -294,7 +308,7 @@ def create_recurring_task_record(validated_data):
         return task
 
 
-def update_recurring_task_record(task, validated_data):
+def update_recurring_task_record(task: RecurringTask, validated_data: dict[str, Any]) -> RecurringTask:
     original_start_date = task.start_date
 
     for field, value in validated_data.items():
@@ -320,7 +334,7 @@ def update_recurring_task_record(task, validated_data):
         return task
 
 
-def ensure_occurrences_for_range(date_from, date_to):
+def ensure_occurrences_for_range(date_from: date, date_to: date) -> None:
     if date_to < date_from:
         raise ValueError("La fecha final no puede ser menor que la inicial.")
 
@@ -330,17 +344,19 @@ def ensure_occurrences_for_range(date_from, date_to):
         sync_task_occurrences(task, date_from, date_to)
 
 
-def _ensure_follow_up_occurrence(task, occurrence):
+def _ensure_follow_up_occurrence(task: RecurringTask, occurrence: TaskOccurrence) -> None:
     sync_task_occurrences(task)
 
 
-def _completed_late(occurrence):
+def _completed_late(occurrence: TaskOccurrence) -> bool:
     if not occurrence.completed_at:
         return False
     return occurrence.completed_at.date() > occurrence.due_date
 
 
-def _serialize_task_compliance_item(task, stats, settings_data=None):
+def _serialize_task_compliance_item(
+    task: RecurringTask, stats: dict[str, Any], settings_data: dict[str, Any] | None = None
+) -> dict[str, Any]:
     overdue_count = stats["overdue_count"]
     skipped_count = stats["skipped_count"]
     late_completion_count = stats["late_completion_count"]
@@ -362,7 +378,9 @@ def _serialize_task_compliance_item(task, stats, settings_data=None):
     }
 
 
-def build_household_insights(date_from, date_to, filters=None):
+def build_household_insights(
+    date_from: date, date_to: date, filters: dict[str, Any] | None = None
+) -> dict[str, Any]:
     if date_to < date_from:
         raise ValueError("La fecha final no puede ser menor que la inicial.")
 
@@ -472,7 +490,7 @@ def build_household_insights(date_from, date_to, filters=None):
     }
 
 
-def complete_task_occurrence(occurrence: TaskOccurrence, completion_notes=""):
+def complete_task_occurrence(occurrence: TaskOccurrence, completion_notes: str = "") -> TaskOccurrence:
     with transaction.atomic():
         locked_occurrence = TaskOccurrence.objects.select_for_update().select_related("recurring_task").get(id=occurrence.id)
 
@@ -491,7 +509,7 @@ def complete_task_occurrence(occurrence: TaskOccurrence, completion_notes=""):
         return locked_occurrence
 
 
-def skip_task_occurrence(occurrence: TaskOccurrence, completion_notes=""):
+def skip_task_occurrence(occurrence: TaskOccurrence, completion_notes: str = "") -> TaskOccurrence:
     with transaction.atomic():
         locked_occurrence = TaskOccurrence.objects.select_for_update().select_related("recurring_task").get(id=occurrence.id)
 
@@ -510,7 +528,7 @@ def skip_task_occurrence(occurrence: TaskOccurrence, completion_notes=""):
         return locked_occurrence
 
 
-def reopen_task_occurrence(occurrence: TaskOccurrence):
+def reopen_task_occurrence(occurrence: TaskOccurrence) -> TaskOccurrence:
     with transaction.atomic():
         locked_occurrence = TaskOccurrence.objects.select_for_update().select_related("recurring_task").get(id=occurrence.id)
 

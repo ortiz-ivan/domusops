@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 
 from django.db import transaction
 from django.utils import timezone
@@ -22,7 +23,7 @@ def add_contribution(goal_id: int, amount: Decimal) -> SavingsGoal:
         return goal
 
 
-def get_goal_progress(goal: SavingsGoal) -> dict:
+def get_goal_progress(goal: SavingsGoal) -> dict[str, Any]:
     remaining = max(goal.target_amount - goal.current_amount, Decimal("0"))
 
     if goal.target_amount > 0:

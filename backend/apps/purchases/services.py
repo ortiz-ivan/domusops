@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Sum
@@ -8,12 +9,12 @@ from django.utils import timezone
 from .models import Product, ProductConsumption, ProductRestock
 
 
-def _validate_consumable(product: Product):
+def _validate_consumable(product: Product) -> None:
     if product.type != "consumable":
         raise ValueError("Esta acción solo aplica a productos consumibles")
 
 
-def consume_product(product_id: int, quantity: Decimal = Decimal("1")):
+def consume_product(product_id: int, quantity: Decimal = Decimal("1")) -> dict[str, Any]:
     with transaction.atomic():
         product = Product.objects.select_for_update().get(id=product_id)
 
@@ -40,7 +41,7 @@ def consume_product(product_id: int, quantity: Decimal = Decimal("1")):
         }
 
 
-def restock_product(product_id: int, quantity: Decimal = Decimal("1")):
+def restock_product(product_id: int, quantity: Decimal = Decimal("1")) -> dict[str, Any]:
     with transaction.atomic():
         product = Product.objects.select_for_update().get(id=product_id)
 
@@ -66,7 +67,7 @@ def restock_product(product_id: int, quantity: Decimal = Decimal("1")):
         }
 
 
-def mark_product_out_of_stock(product_id: int):
+def mark_product_out_of_stock(product_id: int) -> dict[str, Any]:
     with transaction.atomic():
         product = Product.objects.select_for_update().get(id=product_id)
 
@@ -89,7 +90,7 @@ def mark_product_out_of_stock(product_id: int):
         }
 
 
-def get_product_stats(product_id: int, days: int = 90) -> dict:
+def get_product_stats(product_id: int, days: int = 90) -> dict[str, Any]:
     product = Product.objects.get(id=product_id)
     today = timezone.localdate()
     date_from = today - timedelta(days=days - 1)

@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -14,7 +16,7 @@ from apps.reports.services import (
 from .models import FixedExpense, FixedExpensePayment, Income, VariableExpense
 
 
-def create_income_record(validated_data, change_reason=""):
+def create_income_record(validated_data: dict[str, Any], change_reason: str = "") -> Income:
     payload = {
         "amount": validated_data["amount"],
         "source": validated_data.get("source", "").strip(),
@@ -38,7 +40,7 @@ def create_income_record(validated_data, change_reason=""):
         return income
 
 
-def update_income_record(income: Income, validated_data, change_reason=""):
+def update_income_record(income: Income, validated_data: dict[str, Any], change_reason: str = "") -> Income:
     reason = _normalize_change_reason(change_reason, required=True)
     before = _snapshot_income(income)
 
@@ -67,7 +69,7 @@ def update_income_record(income: Income, validated_data, change_reason=""):
         return income
 
 
-def delete_income_record(income: Income, change_reason=""):
+def delete_income_record(income: Income, change_reason: str = "") -> None:
     reason = _normalize_change_reason(change_reason, required=True)
     before = _snapshot_income(income)
     entity_id = income.id
@@ -86,7 +88,7 @@ def delete_income_record(income: Income, change_reason=""):
         income.delete()
 
 
-def create_variable_expense_record(validated_data, change_reason=""):
+def create_variable_expense_record(validated_data: dict[str, Any], change_reason: str = "") -> VariableExpense:
     payload = {
         "amount": validated_data["amount"],
         "category": validated_data["category"],
@@ -113,7 +115,7 @@ def create_variable_expense_record(validated_data, change_reason=""):
         return expense
 
 
-def update_variable_expense_record(expense: VariableExpense, validated_data, change_reason=""):
+def update_variable_expense_record(expense: VariableExpense, validated_data: dict[str, Any], change_reason: str = "") -> VariableExpense:
     reason = _normalize_change_reason(change_reason, required=True)
     before = _snapshot_variable_expense(expense)
 
@@ -140,7 +142,7 @@ def update_variable_expense_record(expense: VariableExpense, validated_data, cha
         return expense
 
 
-def delete_variable_expense_record(expense: VariableExpense, change_reason=""):
+def delete_variable_expense_record(expense: VariableExpense, change_reason: str = "") -> None:
     reason = _normalize_change_reason(change_reason, required=True)
     before = _snapshot_variable_expense(expense)
     entity_id = expense.id
@@ -159,7 +161,7 @@ def delete_variable_expense_record(expense: VariableExpense, change_reason=""):
         expense.delete()
 
 
-def create_fixed_expense_record(validated_data, change_reason=""):
+def create_fixed_expense_record(validated_data: dict[str, Any], change_reason: str = "") -> FixedExpense:
     payload = {
         "name": validated_data["name"].strip(),
         "category": validated_data["category"],
@@ -186,7 +188,7 @@ def create_fixed_expense_record(validated_data, change_reason=""):
         return expense
 
 
-def update_fixed_expense_record(expense: FixedExpense, validated_data, change_reason=""):
+def update_fixed_expense_record(expense: FixedExpense, validated_data: dict[str, Any], change_reason: str = "") -> FixedExpense:
     reason = _normalize_change_reason(change_reason, required=True)
     before = _snapshot_fixed_expense(expense)
 
@@ -214,7 +216,7 @@ def update_fixed_expense_record(expense: FixedExpense, validated_data, change_re
         return expense
 
 
-def delete_fixed_expense_record(expense: FixedExpense, change_reason=""):
+def delete_fixed_expense_record(expense: FixedExpense, change_reason: str = "") -> None:
     reason = _normalize_change_reason(change_reason, required=True)
     before = _snapshot_fixed_expense(expense)
     entity_id = expense.id
@@ -234,7 +236,7 @@ def delete_fixed_expense_record(expense: FixedExpense, change_reason=""):
         expense.delete()
 
 
-def register_payment(fixed_expense_id: int, change_reason=""):
+def register_payment(fixed_expense_id: int, change_reason: str = "") -> dict[str, Any]:
     with transaction.atomic():
         fixed_expense = FixedExpense.objects.select_for_update().get(id=fixed_expense_id)
 
