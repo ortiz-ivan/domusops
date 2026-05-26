@@ -3464,6 +3464,7 @@ select:focus {
   padding: 0.3rem;
   transition: background var(--ease), border-color var(--ease);
   width: 100%;
+  position: relative;
 }
 
 .meal-cell:hover {
@@ -3496,4 +3497,79 @@ select:focus {
   font-size: 1.25rem;
   color: var(--text-muted);
   line-height: 1;
+}
+
+.meal-cell-link-icon {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  color: var(--accent);
+  opacity: 0.65;
+}
+
+.meal-share-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  transition: border-color var(--ease), background var(--ease);
+  user-select: none;
+}
+
+.meal-share-toggle:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+.meal-share-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.meal-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.meal-delete-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+}
+
+.meal-delete-linked-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.meal-delete-linked-toggle input[type="checkbox"] {
+  accent-color: var(--danger, #e74c3c);
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+
+.meal-modal-right-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
 }

@@ -181,3 +181,48 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         if to_date:
             qs = qs.filter(date__lte=to_date)
         return qs
+
+    @action(detail=True, methods=["post"])
+    def link(self, request, pk=None):
+        meal = self.get_object()
+        companion_meal_time = request.data.get("meal_time")
+
+        if meal.meal_time not in ("lunch", "dinner"):
+            raise ValidationError({"detail": "Solo se puede vincular almuerzo con cena."})
+        if companion_meal_time not in ("lunch", "dinner"):
+            raise ValidationError({"meal_time": "Tipo de comida invalido. Use 'lunch' o 'dinner'."})
+        if companion_meal_time == meal.meal_time:
+            raise ValidationError({"meal_time": "No puedes vincular una comida consigo misma."})
+
+        if meal.linked_meal_id and meal.linked_meal.meal_time != companion_meal_time:
+            old = meal.linked_meal
+            old.linked_meal = None
+            old.save(update_fields=["linked_meal"])
+
+        companion, _ = MealPlan.objects.get_or_create(
+            date=meal.date,
+            meal_time=companion_meal_time,
+            defaults={"name": meal.name, "notes": meal.notes},
+        )
+        companion.name = meal.name
+        companion.notes = meal.notes
+        companion.linked_meal = meal
+        companion.save(update_fields=["name", "notes", "linked_meal"])
+
+        meal.linked_meal = companion
+        meal.save(update_fields=["linked_meal"])
+
+        return Response(self.get_serializer(meal).data)
+
+    @action(detail=True, methods=["post"])
+    def unlink(self, request, pk=None):
+        meal = self.get_object()
+
+        if meal.linked_meal_id:
+            companion = meal.linked_meal
+            companion.linked_meal = None
+            companion.save(update_fields=["linked_meal"])
+            meal.linked_meal = None
+            meal.save(update_fields=["linked_meal"])
+
+        return Response(self.get_serializer(meal).data)

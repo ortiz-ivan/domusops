@@ -220,5 +220,5 @@ class DocumentSerializer(serializers.ModelSerializer):
 class MealPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = MealPlan
-        fields = ["id", "date", "meal_time", "name", "notes", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = ["id", "date", "meal_time", "name", "notes", "linked_meal_id", "created_at", "updated_at"]
+        read_only_fields = ["id", "linked_meal_id", "created_at", "updated_at"]

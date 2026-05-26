@@ -293,3 +293,14 @@ export function updateMealPlan(id, payload) {
 export function deleteMealPlan(id) {
   return request(`${PATHS.mealPlans}${id}/`, { method: "DELETE" });
 }
+
+export function linkMealPlan(id, mealTime) {
+  return request(`${PATHS.mealPlans}${id}/link/`, {
+    method: "POST",
+    body: JSON.stringify({ meal_time: mealTime }),
+  });
+}
+
+export function unlinkMealPlan(id) {
+  return request(`${PATHS.mealPlans}${id}/unlink/`, { method: "POST" });
+}

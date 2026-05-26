@@ -132,6 +132,13 @@ class MealPlan(models.Model):
     meal_time = models.CharField(max_length=20, choices=MEAL_TIME_CHOICES)
     name = models.CharField(max_length=200)
     notes = models.TextField(blank=True)
+    linked_meal = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="linked_from",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

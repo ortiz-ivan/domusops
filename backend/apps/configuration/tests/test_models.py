@@ -42,6 +42,76 @@ class TestInventorySettingsSingleton:
         assert "cleaning" in valores
 
 
+class TestInventorySettingsDomainMethods:
+    def test_get_financial_config_retorna_claves_correctas(self, db):
+        instance = InventorySettings.get_solo()
+        financial = instance.get_financial_config()
+        assert set(financial.keys()) == {"budget_buckets", "currency", "monthly_close_day"}
+
+    def test_get_financial_config_budget_buckets_es_lista(self, db):
+        instance = InventorySettings.get_solo()
+        financial = instance.get_financial_config()
+        assert isinstance(financial["budget_buckets"], list)
+        assert len(financial["budget_buckets"]) > 0
+
+    def test_get_financial_config_currency_tiene_code(self, db):
+        instance = InventorySettings.get_solo()
+        financial = instance.get_financial_config()
+        assert "code" in financial["currency"]
+
+    def test_get_financial_config_monthly_close_day_es_entero(self, db):
+        instance = InventorySettings.get_solo()
+        financial = instance.get_financial_config()
+        assert isinstance(financial["monthly_close_day"], int)
+
+    def test_get_alert_config_retorna_claves_correctas(self, db):
+        instance = InventorySettings.get_solo()
+        alert = instance.get_alert_config()
+        assert set(alert.keys()) == {"alerts", "thresholds"}
+
+    def test_get_alert_config_alerts_tiene_expiring_soon_days(self, db):
+        instance = InventorySettings.get_solo()
+        alert = instance.get_alert_config()
+        assert "expiring_soon_days" in alert["alerts"]
+
+    def test_get_alert_config_thresholds_tiene_critical_stock_ratio(self, db):
+        instance = InventorySettings.get_solo()
+        alert = instance.get_alert_config()
+        assert "critical_stock_ratio" in alert["thresholds"]
+
+    def test_get_inventory_config_retorna_claves_correctas(self, db):
+        instance = InventorySettings.get_solo()
+        inventory = instance.get_inventory_config()
+        assert set(inventory.keys()) == {"categories", "units", "usage_frequency_weights"}
+
+    def test_get_inventory_config_categories_es_lista(self, db):
+        instance = InventorySettings.get_solo()
+        inventory = instance.get_inventory_config()
+        assert isinstance(inventory["categories"], list)
+        assert len(inventory["categories"]) > 0
+
+    def test_get_inventory_config_units_es_lista(self, db):
+        instance = InventorySettings.get_solo()
+        inventory = instance.get_inventory_config()
+        assert isinstance(inventory["units"], list)
+
+    def test_get_inventory_config_usage_frequency_weights_tiene_high_medium_low(self, db):
+        instance = InventorySettings.get_solo()
+        inventory = instance.get_inventory_config()
+        weights = inventory["usage_frequency_weights"]
+        assert set(weights.keys()) >= {"high", "medium", "low"}
+
+    def test_domain_methods_son_subconjunto_de_get_config(self, db):
+        instance = InventorySettings.get_solo()
+        full = instance.get_config()
+        financial = instance.get_financial_config()
+        alert = instance.get_alert_config()
+        inventory = instance.get_inventory_config()
+        assert financial["budget_buckets"] == full["budget_buckets"]
+        assert alert["alerts"] == full["alerts"]
+        assert inventory["categories"] == full["categories"]
+
+
 # ---------------------------------------------------------------------------
 # merge_inventory_settings
 # ---------------------------------------------------------------------------

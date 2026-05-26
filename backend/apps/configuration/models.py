@@ -265,5 +265,28 @@ class InventorySettings(models.Model):
     def get_config(self):
         return merge_inventory_settings(self.config)
 
+    def get_financial_config(self) -> dict:
+        config = self.get_config()
+        return {
+            "budget_buckets": config["budget_buckets"],
+            "currency": config["currency"],
+            "monthly_close_day": config["monthly_close_day"],
+        }
+
+    def get_alert_config(self) -> dict:
+        config = self.get_config()
+        return {
+            "alerts": config["alerts"],
+            "thresholds": config["thresholds"],
+        }
+
+    def get_inventory_config(self) -> dict:
+        config = self.get_config()
+        return {
+            "categories": config["categories"],
+            "units": config["units"],
+            "usage_frequency_weights": config["usage_frequency_weights"],
+        }
+
     def __str__(self):
         return "Configuracion de inventario"

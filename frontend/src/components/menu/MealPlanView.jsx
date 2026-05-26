@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Link2 } from "lucide-react";
 import {
   createMealPlan,
   deleteMealPlan,
+  linkMealPlan,
   listMealPlans,
+  unlinkMealPlan,
   updateMealPlan,
 } from "../../api.js";
 
@@ -13,6 +15,9 @@ const MEAL_TIMES = [
   { key: "dinner", label: "Cena" },
   { key: "snack", label: "Merienda" },
 ];
+
+const COMPANION = { lunch: "dinner", dinner: "lunch" };
+const COMPANION_LABEL = { lunch: "la cena", dinner: "el almuerzo" };
 
 const DAY_SHORT = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -56,6 +61,8 @@ export function MealPlanView() {
   const [editingCell, setEditingCell] = useState(null);
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
+  const [formShareOther, setFormShareOther] = useState(false);
+  const [deleteLinked, setDeleteLinked] = useState(false);
   const [formError, setFormError] = useState(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -84,23 +91,40 @@ export function MealPlanView() {
     setEditingCell({ date: dateStr, meal_time: mealTime, meal: existing });
     setFormName(existing?.name ?? "");
     setFormNotes(existing?.notes ?? "");
+    setFormShareOther(!!existing?.linked_meal_id);
+    setDeleteLinked(false);
     setFormError(null);
   }
 
   function closeCell() {
     setEditingCell(null);
     setFormError(null);
+    setFormShareOther(false);
+    setDeleteLinked(false);
   }
+
+  const canShare = editingCell && COMPANION[editingCell.meal_time] !== undefined;
+  const wasLinked = !!editingCell?.meal?.linked_meal_id;
 
   async function handleSave(e) {
     e.preventDefault();
     const { date, meal_time, meal } = editingCell;
     try {
+      let savedMeal;
       if (meal) {
-        await updateMealPlan(meal.id, { name: formName, notes: formNotes });
+        savedMeal = await updateMealPlan(meal.id, { name: formName, notes: formNotes });
       } else {
-        await createMealPlan({ date, meal_time, name: formName, notes: formNotes });
+        savedMeal = await createMealPlan({ date, meal_time, name: formName, notes: formNotes });
       }
+
+      if (canShare) {
+        if (formShareOther) {
+          await linkMealPlan(savedMeal.id, COMPANION[meal_time]);
+        } else if (wasLinked) {
+          await unlinkMealPlan(savedMeal.id);
+        }
+      }
+
       closeCell();
       load();
     } catch (err) {
@@ -110,6 +134,12 @@ export function MealPlanView() {
 
   async function handleDelete() {
     try {
+      const linkedId = editingCell.meal.linked_meal_id;
+      if (deleteLinked && linkedId) {
+        try {
+          await deleteMealPlan(linkedId);
+        } catch {}
+      }
       await deleteMealPlan(editingCell.meal.id);
       closeCell();
       load();
@@ -165,16 +195,20 @@ export function MealPlanView() {
             {weekDays.map((day) => {
               const dateStr = toIso(day);
               const meal = meals[`${dateStr}_${mealTime}`];
+              const isLinked = !!meal?.linked_meal_id;
               return (
                 <button
                   key={dateStr}
-                  className={`meal-cell${meal ? " meal-cell--filled" : " meal-cell--empty"}`}
+                  className={`meal-cell${meal ? " meal-cell--filled" : " meal-cell--empty"}${isLinked ? " meal-cell--linked" : ""}`}
                   onClick={() => openCell(dateStr, mealTime)}
                   title={meal ? meal.name : `Agregar ${label.toLowerCase()}`}
                   type="button"
                 >
                   {meal ? (
-                    <span className="meal-cell-name">{meal.name}</span>
+                    <>
+                      <span className="meal-cell-name">{meal.name}</span>
+                      {isLinked && <Link2 size={10} className="meal-cell-link-icon" />}
+                    </>
                   ) : (
                     <span className="meal-cell-add">+</span>
                   )}
@@ -217,19 +251,44 @@ export function MealPlanView() {
                       style={{ resize: "vertical" }}
                     />
                   </label>
-                </div>
-                <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", marginTop: "1rem" }}>
-                  {editingCell.meal && (
-                    <button type="button" className="btn btn-danger" onClick={handleDelete}>
-                      Eliminar
-                    </button>
+                  {canShare && (
+                    <label className="meal-share-toggle" style={{ gridColumn: "1 / -1" }}>
+                      <input
+                        type="checkbox"
+                        checked={formShareOther}
+                        onChange={(e) => setFormShareOther(e.target.checked)}
+                      />
+                      <Link2 size={13} />
+                      Unificar con {COMPANION_LABEL[editingCell.meal_time]}
+                    </label>
                   )}
-                  <button type="button" className="btn btn-secondary" onClick={closeCell}>
-                    Cancelar
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Guardar
-                  </button>
+                </div>
+                <div className="meal-modal-actions">
+                  {editingCell.meal && (
+                    <div className="meal-delete-section">
+                      {wasLinked && (
+                        <label className="meal-delete-linked-toggle">
+                          <input
+                            type="checkbox"
+                            checked={deleteLinked}
+                            onChange={(e) => setDeleteLinked(e.target.checked)}
+                          />
+                          También eliminar {COMPANION_LABEL[editingCell.meal_time]}
+                        </label>
+                      )}
+                      <button type="button" className="btn btn-danger" onClick={handleDelete}>
+                        Eliminar
+                      </button>
+                    </div>
+                  )}
+                  <div className="meal-modal-right-actions">
+                    <button type="button" className="btn btn-secondary" onClick={closeCell}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className="btn btn-primary">
+                      Guardar
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
